@@ -143,6 +143,9 @@ DF_COLUMNS = [
     "insider_net_buying_6m_usd", "short_interest_pct", "days_to_cover",
     "eps_revisions_3m_pct", "analyst_revisions_up", "analyst_revisions_down",
     "institutional_ownership_pct",
+    "bull_probability", "base_probability", "bear_probability",
+    "probability_weighted_return",
+    "dcf_growth_y1_y5", "dcf_terminal_multiple", "dcf_wacc",
 ]
 
 
@@ -221,6 +224,14 @@ def view_to_dataframe(view: RunView) -> pd.DataFrame:
                 "analyst_revisions_up": e.analyst_revisions_up,
                 "analyst_revisions_down": e.analyst_revisions_down,
                 "institutional_ownership_pct": e.institutional_ownership_pct,
+                # Scenario math (Pass 3)
+                "bull_probability": e.bull_probability,
+                "base_probability": e.base_probability,
+                "bear_probability": e.bear_probability,
+                "probability_weighted_return": e.probability_weighted_return,
+                "dcf_growth_y1_y5": e.dcf_growth_y1_y5,
+                "dcf_terminal_multiple": e.dcf_terminal_multiple,
+                "dcf_wacc": e.dcf_wacc,
             }
         )
     if rows:
@@ -532,6 +543,129 @@ def chart_council_score_distribution(df: pd.DataFrame) -> go.Figure:
     fig.update_layout(
         margin=dict(l=0, r=0, t=10, b=0), height=240,
         xaxis_title="Council score (%)", yaxis_title="# companies",
+    )
+    return fig
+
+
+# ---------------------- Scenario math (Pass 3) ----------------------
+
+def probability_weighted_return(
+    bull_p: float, base_p: float, bear_p: float,
+    price: float, bull_target: float, base_target: float, bear_target: float,
+) -> dict:
+    """Return PW expected return given scenario weights + price targets.
+
+    Returns dict with bull/base/bear/blended returns and individual contributions.
+    Probabilities are normalized to sum to 1 (defensive against UI slider drift).
+    """
+    total_p = (bull_p or 0) + (base_p or 0) + (bear_p or 0)
+    if total_p <= 0:
+        return {"bull_ret": 0, "base_ret": 0, "bear_ret": 0,
+                "pw_return": 0, "bull_contrib": 0, "base_contrib": 0, "bear_contrib": 0}
+    bull_p, base_p, bear_p = bull_p / total_p, base_p / total_p, bear_p / total_p
+    bull_ret = (bull_target / price - 1) if price else 0
+    base_ret = (base_target / price - 1) if price else 0
+    bear_ret = (bear_target / price - 1) if price else 0
+    return {
+        "bull_ret": bull_ret, "base_ret": base_ret, "bear_ret": bear_ret,
+        "bull_contrib": bull_p * bull_ret,
+        "base_contrib": base_p * base_ret,
+        "bear_contrib": bear_p * bear_ret,
+        "pw_return": bull_p * bull_ret + base_p * base_ret + bear_p * bear_ret,
+        "bull_p": bull_p, "base_p": base_p, "bear_p": bear_p,
+    }
+
+
+def forward_dcf_fair_value(
+    *,
+    current_eps: float,
+    growth_y1_y5: float,
+    terminal_margin_uplift: float,   # multiplicative on EPS (1.0 = no change)
+    terminal_pe: float,
+    wacc: float,
+) -> float:
+    """Simple 5-year forward DCF on an EPS basis.
+
+    Project EPS to year 5, apply a terminal P/E, discount back to today at WACC.
+    `terminal_margin_uplift` lets us model margin expansion ("EPS grows faster
+    than revenue" if op margin expands; <1.0 if margins compress).
+    """
+    eps_y5 = current_eps * ((1 + growth_y1_y5) ** 5) * terminal_margin_uplift
+    fair_value_y5 = eps_y5 * terminal_pe
+    return fair_value_y5 / ((1 + wacc) ** 5)
+
+
+def chart_sensitivity_table(
+    *,
+    current_eps: float,
+    current_price: float,
+    growth_levels: list[float],   # e.g. [0.10, 0.15, 0.20, 0.25, 0.30]
+    pe_levels: list[float],       # e.g. [15, 20, 25, 30, 35]
+    wacc: float,
+) -> go.Figure:
+    """Sensitivity grid — growth (rows) × terminal P/E (cols), value = upside %."""
+    if current_eps <= 0 or current_price <= 0:
+        return _empty_fig("Not enough data for sensitivity")
+    z = []
+    text = []
+    for g in growth_levels:
+        z_row = []
+        t_row = []
+        for pe in pe_levels:
+            fv = forward_dcf_fair_value(
+                current_eps=current_eps, growth_y1_y5=g,
+                terminal_margin_uplift=1.0, terminal_pe=pe, wacc=wacc,
+            )
+            upside = (fv / current_price - 1) * 100
+            z_row.append(upside)
+            t_row.append(f"{upside:+.0f}%")
+        z.append(z_row); text.append(t_row)
+
+    fig = go.Figure(go.Heatmap(
+        z=z,
+        x=[f"{pe:.0f}x" for pe in pe_levels],
+        y=[f"{g*100:.0f}%" for g in growth_levels],
+        colorscale=[
+            [0.0, "#7f1d1d"], [0.25, "#dc2626"], [0.5, "#475569"],
+            [0.75, "#22c55e"], [1.0, "#15803d"],
+        ],
+        zmid=0,
+        text=text, texttemplate="%{text}",
+        textfont=dict(size=12, color="white"),
+        showscale=False,
+        hovertemplate="Growth %{y}, Terminal P/E %{x}<br>Upside: %{z:.0f}%<extra></extra>",
+    ))
+    fig.update_layout(
+        margin=dict(l=0, r=0, t=10, b=0),
+        height=320,
+        xaxis_title="Terminal P/E",
+        yaxis_title="5y revenue CAGR",
+        xaxis=dict(side="top"),
+    )
+    return fig
+
+
+def chart_scenario_waterfall(
+    bull_contrib: float, base_contrib: float, bear_contrib: float,
+) -> go.Figure:
+    """Show how each scenario contributes to the probability-weighted return."""
+    fig = go.Figure(go.Waterfall(
+        x=["Bull", "Base", "Bear", "PW return"],
+        y=[bull_contrib * 100, base_contrib * 100, bear_contrib * 100, 0],
+        measure=["relative", "relative", "relative", "total"],
+        text=[f"{bull_contrib*100:+.1f}%", f"{base_contrib*100:+.1f}%",
+              f"{bear_contrib*100:+.1f}%", ""],
+        textposition="outside",
+        increasing=dict(marker=dict(color="#16a34a")),
+        decreasing=dict(marker=dict(color="#dc2626")),
+        totals=dict(marker=dict(color="#22d3ee")),
+        connector=dict(line=dict(color="rgba(148,163,184,0.3)")),
+    ))
+    fig.update_layout(
+        margin=dict(l=0, r=0, t=10, b=0),
+        height=280,
+        yaxis_title="Contribution to expected return (%)",
+        showlegend=False,
     )
     return fig
 

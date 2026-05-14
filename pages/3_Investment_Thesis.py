@@ -24,8 +24,11 @@ if str(ROOT) not in sys.path:
 
 from dashboard_utils import (  # noqa: E402
     chart_analyst_consensus, chart_price_targets,
+    chart_scenario_waterfall, chart_sensitivity_table,
     consensus_badge,
-    fmt_money, fmt_pct, fmt_price, fmt_ratio, rec_badge, structure_badge,
+    fmt_money, fmt_pct, fmt_price, fmt_ratio,
+    forward_dcf_fair_value, probability_weighted_return,
+    rec_badge, structure_badge,
     view_to_dataframe,
 )
 from investment_agent.council.personas import BY_KEY as INVESTOR_BY_KEY  # noqa: E402
@@ -304,6 +307,203 @@ if flags2:
         st.markdown(f"{icon} {msg}")
 
 st.markdown("---")
+
+
+# ---------------- SCENARIO & VALUATION (Pass 3) ----------------
+st.markdown("### :bar_chart: Scenario math & valuation")
+st.caption(
+    "The headline '12-month expected return' is just one number. This section "
+    "decomposes it into probability-weighted scenarios and lets you stress-test "
+    "the base case with an editable 5-year DCF."
+)
+
+# ----- 1) Probability-weighted return -----
+if extras.stock_price and extras.bull_target and extras.base_target and extras.bear_target:
+    st.markdown("#### Probability-weighted expected return")
+    st.caption(
+        "Set the probability you assign to each scenario. The blended return "
+        "is the real expected value, not the headline base-case number."
+    )
+
+    default_bull = float(extras.bull_probability or 0.30)
+    default_base = float(extras.base_probability or 0.50)
+    default_bear = float(extras.bear_probability or 0.20)
+
+    pw_cols = st.columns(3)
+    bull_p = pw_cols[0].slider(
+        ":green_circle: Bull case probability",
+        0.0, 1.0, value=default_bull, step=0.05,
+        key=f"bull_p_{co_obj.id}",
+    )
+    base_p = pw_cols[1].slider(
+        ":blue_circle: Base case probability",
+        0.0, 1.0, value=default_base, step=0.05,
+        key=f"base_p_{co_obj.id}",
+    )
+    bear_p = pw_cols[2].slider(
+        ":red_circle: Bear case probability",
+        0.0, 1.0, value=default_bear, step=0.05,
+        key=f"bear_p_{co_obj.id}",
+    )
+
+    pw = probability_weighted_return(
+        bull_p, base_p, bear_p,
+        extras.stock_price, extras.bull_target, extras.base_target, extras.bear_target,
+    )
+
+    sum_p = bull_p + base_p + bear_p
+    if abs(sum_p - 1.0) > 0.01:
+        st.caption(
+            f":information_source: Probabilities sum to {sum_p:.0%} — normalized to 100% in the math."
+        )
+
+    res_cols = st.columns(4)
+    res_cols[0].metric("Bull return", f"{pw['bull_ret']*100:+.0f}%",
+                        f"to ${extras.bull_target:,.0f}")
+    res_cols[1].metric("Base return", f"{pw['base_ret']*100:+.0f}%",
+                        f"to ${extras.base_target:,.0f}")
+    res_cols[2].metric("Bear return", f"{pw['bear_ret']*100:+.0f}%",
+                        f"to ${extras.bear_target:,.0f}")
+    pw_ret = pw["pw_return"]
+    res_cols[3].metric("Prob-weighted return", f"{pw_ret*100:+.1f}%",
+                        delta=("Better than headline" if pw_ret > (extras.expected_return_12m or 0)
+                               else ("Below headline" if pw_ret < (extras.expected_return_12m or 0) - 0.01 else None)))
+
+    if extras.expected_return_12m is not None and abs(pw_ret - extras.expected_return_12m) > 0.03:
+        if pw_ret < extras.expected_return_12m:
+            st.warning(
+                f":warning: **Probability-weighted return ({pw_ret*100:+.0f}%) is meaningfully "
+                f"below the headline expected return ({extras.expected_return_12m*100:+.0f}%)** — "
+                "the tail risks are mathematically reducing the case. Consider sizing down."
+            )
+        else:
+            st.success(
+                f":sparkles: **Probability-weighted return ({pw_ret*100:+.0f}%) exceeds the "
+                f"headline ({extras.expected_return_12m*100:+.0f}%)** — bull case is asymmetric."
+            )
+
+    st.plotly_chart(
+        chart_scenario_waterfall(pw["bull_contrib"], pw["base_contrib"], pw["bear_contrib"]),
+        use_container_width=True,
+    )
+
+    st.markdown("---")
+
+# ----- 2) Editable DCF -----
+if extras.stock_price and extras.pe_trailing and extras.pe_trailing > 0:
+    st.markdown("#### Editable 5-year DCF")
+    st.caption(
+        "Slider-driven forward DCF on an EPS basis. Defaults seeded from our "
+        "base case; move the sliders to pressure-test where the price stops working."
+    )
+
+    current_eps = extras.stock_price / extras.pe_trailing
+    default_growth = float(extras.dcf_growth_y1_y5 or extras.revenue_growth_fwd or 0.15)
+    default_pe = float(extras.dcf_terminal_multiple or extras.pe_forward or 20)
+    default_wacc = float(extras.dcf_wacc or extras.wacc or 0.09)
+
+    dcf_cols = st.columns(4)
+    growth = dcf_cols[0].slider(
+        "5y EPS CAGR",
+        min_value=-0.05, max_value=0.60, value=default_growth, step=0.01,
+        format="%.0f%%", key=f"dcf_g_{co_obj.id}",
+    )
+    margin_uplift = dcf_cols[1].slider(
+        "Margin uplift over 5y",
+        min_value=0.7, max_value=1.6, value=1.0, step=0.05,
+        format="%.2fx", key=f"dcf_m_{co_obj.id}",
+        help="EPS multiplier on top of revenue growth (1.0 = flat margins, 1.2 = ~20% margin expansion)",
+    )
+    term_pe = dcf_cols[2].slider(
+        "Terminal P/E",
+        min_value=8.0, max_value=50.0, value=default_pe, step=1.0,
+        format="%.0fx", key=f"dcf_pe_{co_obj.id}",
+    )
+    wacc_input = dcf_cols[3].slider(
+        "WACC / discount rate",
+        min_value=0.05, max_value=0.16, value=default_wacc, step=0.005,
+        format="%.1f%%", key=f"dcf_w_{co_obj.id}",
+    )
+
+    fv = forward_dcf_fair_value(
+        current_eps=current_eps, growth_y1_y5=growth,
+        terminal_margin_uplift=margin_uplift, terminal_pe=term_pe, wacc=wacc_input,
+    )
+    dcf_upside = (fv / extras.stock_price - 1) * 100
+
+    dr_cols = st.columns(4)
+    dr_cols[0].metric("Current EPS", f"${current_eps:.2f}",
+                      help="Inferred from stock_price / trailing P/E")
+    dr_cols[1].metric("Year-5 EPS",
+                      f"${current_eps * ((1+growth)**5) * margin_uplift:.2f}")
+    dr_cols[2].metric("DCF fair value", f"${fv:.2f}")
+    dr_cols[3].metric("Upside / downside", f"{dcf_upside:+.0f}%",
+                      delta=f"vs current ${extras.stock_price:,.2f}")
+
+    # ----- 3) Sensitivity grid -----
+    st.markdown("#### Sensitivity: growth × terminal P/E")
+    st.caption(
+        "Each cell = implied upside at that combo. Centerline ≈ 0% (fair-valued); "
+        "green = upside, red = downside."
+    )
+    growth_levels = [max(0.0, growth - 0.10), max(0.0, growth - 0.05), growth,
+                      growth + 0.05, growth + 0.10]
+    pe_levels = [max(8, term_pe - 8), max(8, term_pe - 4), term_pe,
+                  term_pe + 4, term_pe + 8]
+    st.plotly_chart(
+        chart_sensitivity_table(
+            current_eps=current_eps, current_price=extras.stock_price,
+            growth_levels=growth_levels, pe_levels=pe_levels, wacc=wacc_input,
+        ),
+        use_container_width=True,
+    )
+
+    st.markdown("---")
+
+
+# ----- 4) Time-horizon thesis -----
+short_term = extras.short_term_catalysts or []
+medium_term = extras.medium_term_thesis or extras.thesis_points or []
+long_term = extras.long_term_thesis or []
+exit_triggers = extras.exit_triggers or []
+
+if any([short_term, medium_term, long_term, exit_triggers]):
+    st.markdown("#### Time-horizon thesis")
+    st.caption(
+        "Bullets ranked by time horizon — short-term catalysts (next 1-2 quarters) "
+        "through long-term moat trajectory (3-5 years), plus exit triggers."
+    )
+    h_cols = st.columns(4)
+    with h_cols[0]:
+        st.markdown(":hourglass: **Short-term catalysts** (1-2 quarters)")
+        if short_term:
+            for s in short_term:
+                st.markdown(f"- {s}")
+        else:
+            st.caption("_n/a_")
+    with h_cols[1]:
+        st.markdown(":chart_with_upwards_trend: **Base case** (12-24 months)")
+        if medium_term:
+            for s in medium_term:
+                st.markdown(f"- {s}")
+        else:
+            st.caption("_n/a_")
+    with h_cols[2]:
+        st.markdown(":mountain: **Long-term moat** (3-5 years)")
+        if long_term:
+            for s in long_term:
+                st.markdown(f"- {s}")
+        else:
+            st.caption("_n/a_")
+    with h_cols[3]:
+        st.markdown(":octagonal_sign: **Exit triggers**")
+        if exit_triggers:
+            for s in exit_triggers:
+                st.markdown(f"- {s}")
+        else:
+            st.caption("_n/a_")
+
+    st.markdown("---")
 
 # ---------------- ANALYST CONSENSUS + PRICE TARGETS ----------------
 left, right = st.columns([1, 2])

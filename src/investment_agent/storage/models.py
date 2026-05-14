@@ -113,6 +113,22 @@ class CompanyExtras(BaseModel):
     analyst_revisions_down: int | None = None
     institutional_ownership_pct: float | None = None
 
+    # Scenario math (Pass 3)
+    bull_probability: float | None = None       # e.g. 0.25
+    base_probability: float | None = None       # e.g. 0.50
+    bear_probability: float | None = None       # e.g. 0.25
+    probability_weighted_return: float | None = None
+    short_term_catalysts: list[str] = Field(default_factory=list)
+    medium_term_thesis: list[str] = Field(default_factory=list)
+    long_term_thesis: list[str] = Field(default_factory=list)
+    exit_triggers: list[str] = Field(default_factory=list)
+    # DCF assumption defaults — let the UI seed the sliders
+    dcf_growth_y1_y5: float | None = None       # CAGR through Y5
+    dcf_terminal_margin: float | None = None    # year-5 op margin
+    dcf_terminal_multiple: float | None = None  # terminal P/E
+    dcf_wacc: float | None = None
+    dcf_fair_value: float | None = None         # baseline fair value computed at our inputs
+
     # Analyst consensus
     analyst_buy: int | None = None
     analyst_hold: int | None = None

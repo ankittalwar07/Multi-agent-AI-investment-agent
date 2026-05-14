@@ -1456,6 +1456,398 @@ RISK_SENTIMENT: dict[str, dict] = {
 }
 
 
+# ---------- scenario math patch (Pass 3) ----------
+#
+# Per public company:
+#   bull/base/bear_probability  — must sum to ~1.0
+#   short_term_catalysts        — next 1-2 quarters
+#   medium_term_thesis          — 12-24 month base case
+#   long_term_thesis            — 3-5 year moat trajectory
+#   exit_triggers               — when to sell
+#   dcf_growth_y1_y5            — 5y revenue CAGR assumption
+#   dcf_terminal_margin         — year-5 operating margin
+#   dcf_terminal_multiple       — terminal P/E
+#   dcf_wacc                    — discount rate
+
+SCENARIOS: dict[str, dict] = {
+    "NVIDIA": dict(
+        bull_probability=0.30, base_probability=0.50, bear_probability=0.20,
+        short_term_catalysts=[
+            "Rubin platform reveal (next 2-3 quarters)",
+            "Hyperscaler 2026 capex guidance refresh",
+            "Q3 earnings — magnitude of beat vs already-elevated consensus",
+        ],
+        medium_term_thesis=[
+            "Maintain >80% datacenter accelerator share through Blackwell -> Rubin cadence",
+            "Sovereign AI orders add a 2nd demand pillar beyond US hyperscalers",
+            "Networking + software grow from 25% to 35% of mix (margin tailwind)",
+        ],
+        long_term_thesis=[
+            "CUDA software lock-in compounds — every PyTorch student is a 10-year customer",
+            "Inference-side demand eventually exceeds training by 5x",
+            "Moats: software ecosystem (deepest), packaging supply (TSMC CoWoS), networking IP",
+        ],
+        exit_triggers=[
+            "Hyperscaler custom silicon takes >25% of inference workloads",
+            "Forward P/E re-rates above 45x (priced for >40% perpetual growth)",
+            "Two consecutive datacenter revenue misses",
+        ],
+        dcf_growth_y1_y5=0.32, dcf_terminal_margin=0.50,
+        dcf_terminal_multiple=30, dcf_wacc=0.10,
+    ),
+    "ASML Holding": dict(
+        bull_probability=0.40, base_probability=0.45, bear_probability=0.15,
+        short_term_catalysts=[
+            "High-NA EUV first-customer revenue (TSMC, Intel)",
+            "China license clarifications",
+            "Q3 systems backlog update",
+        ],
+        medium_term_thesis=[
+            "EUV monopoly persists with no commercial competitor before 2030+",
+            "High-NA EUV at $400M+ per system — 2nd-gen monopoly already locked in",
+            "Service & upgrades = recurring revenue (~35% of sales) growing faster than systems",
+        ],
+        long_term_thesis=[
+            "Hyper-NA EUV (post-2030) extends monopoly another decade",
+            "Customer concentration is a feature — only 3 customers exist at the leading edge",
+            "Geopolitical export-control risk already in price; Western fab expansion offsets",
+        ],
+        exit_triggers=[
+            "Credible competitor (Canon NIL?) demonstrates production EUV scanner",
+            "Sustained Chinese export-control expansion (>30% of revenue impacted)",
+            "Customer capex digestion cycle drags >18 months",
+        ],
+        dcf_growth_y1_y5=0.22, dcf_terminal_margin=0.34,
+        dcf_terminal_multiple=28, dcf_wacc=0.08,
+    ),
+    "TSMC": dict(
+        bull_probability=0.35, base_probability=0.50, bear_probability=0.15,
+        short_term_catalysts=[
+            "CoWoS capacity expansion (next 2-3 quarters)",
+            "2nm process customer wins (Apple, NVIDIA, AMD orders)",
+            "Arizona Fab 2 production milestone",
+        ],
+        medium_term_thesis=[
+            "Maintain >90% leading-edge logic share through 2nm and A16 nodes",
+            "Pricing power on advanced nodes — 10-15% ASP increase per node",
+            "Free cash flow inflection as Arizona capex peaks in 2026",
+        ],
+        long_term_thesis=[
+            "Geographic diversification (Arizona + Japan + Germany) de-risks Taiwan premium",
+            "Advanced packaging (CoWoS, SoIC) becomes a separate margin pillar",
+            "Even bear-case Taiwan disruption priced at <30% downside given essentiality",
+        ],
+        exit_triggers=[
+            "Samsung or Intel achieve 2nm yield parity",
+            "Taiwan geopolitical escalation beyond current baseline",
+            "Hyperscaler in-house silicon takes >50% of leading-edge wafers",
+        ],
+        dcf_growth_y1_y5=0.18, dcf_terminal_margin=0.45,
+        dcf_terminal_multiple=22, dcf_wacc=0.08,
+    ),
+    "SK Hynix": dict(
+        bull_probability=0.40, base_probability=0.45, bear_probability=0.15,
+        short_term_catalysts=[
+            "HBM4 sampling milestones",
+            "DRAM ASP guidance",
+            "Q4 booking visibility into 2027 capacity",
+        ],
+        medium_term_thesis=[
+            "First-to-volume HBM3E with NVIDIA-locked supply through 2026",
+            "HBM revenue 5x by 2027 vs 2024 baseline",
+            "DRAM upcycle adds optionality beyond HBM",
+        ],
+        long_term_thesis=[
+            "Three-supplier oligopoly with discipline = sustained pricing",
+            "Compute-in-memory architectures extend HBM relevance into 2030s",
+            "Korea geopolitical risk is a discount, not an existential threat",
+        ],
+        exit_triggers=[
+            "Samsung achieves HBM3E qualification at NVIDIA at scale",
+            "DRAM ASP rolls over",
+            "China memory subsidies create a 4th low-cost player",
+        ],
+        dcf_growth_y1_y5=0.25, dcf_terminal_margin=0.32,
+        dcf_terminal_multiple=10, dcf_wacc=0.10,
+    ),
+    "Broadcom": dict(
+        bull_probability=0.35, base_probability=0.50, bear_probability=0.15,
+        short_term_catalysts=[
+            "Hyperscaler design-win announcements (Apple, Meta, Google ASIC)",
+            "VMware ARR milestones",
+            "AI networking revenue mix update",
+        ],
+        medium_term_thesis=[
+            "Custom AI silicon for hyperscalers = recurring annuity revenue",
+            "Tomahawk + Jericho switch ASICs dominate AI fabric",
+            "VMware integration unlocks software FCF expansion",
+        ],
+        long_term_thesis=[
+            "Co-packaged optics adds another decade of switch dominance",
+            "Capital allocation discipline (dividends + buybacks)",
+            "Diversified across hyperscaler customers (not single-vendor risk)",
+        ],
+        exit_triggers=[
+            "Customer brings ASIC design in-house (lose Google or Meta)",
+            "VMware ARR misses sequentially",
+            "Switch competition from custom silicon trends",
+        ],
+        dcf_growth_y1_y5=0.18, dcf_terminal_margin=0.45,
+        dcf_terminal_multiple=24, dcf_wacc=0.085,
+    ),
+    "Vertiv Holdings": dict(
+        bull_probability=0.35, base_probability=0.50, bear_probability=0.15,
+        short_term_catalysts=[
+            "Q3 backlog update — liquid cooling order book",
+            "New product cycle on rear-door heat exchangers",
+            "Hyperscaler power contract wins",
+        ],
+        medium_term_thesis=[
+            "Liquid cooling backlog +60% YoY; 2026 capacity sold out",
+            "Highest revenue % from datacenters among power/cooling vendors",
+            "Margin expansion from cooling mix shift",
+        ],
+        long_term_thesis=[
+            "Datacenter density continues to rise — liquid cooling becomes standard",
+            "Pure-play vs diversified Schneider/Eaton = better correlation to AI capex",
+            "M&A optionality (cooling, immersion, racks) as the leader consolidates",
+        ],
+        exit_triggers=[
+            "Hyperscaler capex digestion cycle (>2 quarters)",
+            "Schneider or Eaton make a cooling acquisition that closes the moat",
+            "FCF margin compresses below 10%",
+        ],
+        dcf_growth_y1_y5=0.22, dcf_terminal_margin=0.20,
+        dcf_terminal_multiple=22, dcf_wacc=0.09,
+    ),
+    "Ibiden": dict(
+        bull_probability=0.40, base_probability=0.45, bear_probability=0.15,
+        short_term_catalysts=[
+            "ABF capacity expansion announcements",
+            "Improved package-substrate pricing in Q3",
+            "Higher layer-count substrate qualification at NVIDIA",
+        ],
+        medium_term_thesis=[
+            "Sole-source-class ABF substrate supplier",
+            "NVIDIA's biggest unhedged supply chain bottleneck after CoWoS",
+            "Trades at half the multiple of comparable AI-supply-chain names",
+        ],
+        long_term_thesis=[
+            "Substrate capacity additions take 2+ years — pricing power persists",
+            "Higher layer counts (>20L) compound pricing power",
+            "Yen weakness is a multi-year tailwind for export competitiveness",
+        ],
+        exit_triggers=[
+            "Korean / Taiwanese substrate makers achieve quality parity at scale",
+            "NVIDIA + Intel jointly invest in 2nd-source substrate fab",
+            "Yen strength reverses materially",
+        ],
+        dcf_growth_y1_y5=0.18, dcf_terminal_margin=0.18,
+        dcf_terminal_multiple=14, dcf_wacc=0.08,
+    ),
+    "Freeport-McMoRan": dict(
+        bull_probability=0.30, base_probability=0.50, bear_probability=0.20,
+        short_term_catalysts=[
+            "Q3 production update (El Abra restart potential)",
+            "Multi-year copper supply deficit forecasts from CRU/Wood Mackenzie",
+            "Hyperscaler capex guidance — datacenter copper demand signal",
+        ],
+        medium_term_thesis=[
+            "Best operating leverage to LME copper price",
+            "AI datacenter buildout is the swing factor on the copper deficit through 2030",
+            "Grasberg expansion adds low-cost ounces with gold credits",
+        ],
+        long_term_thesis=[
+            "Energy transition + AI datacenter copper demand is structural",
+            "Capital discipline + buyback program = double-digit FCF yield at $5+/lb copper",
+            "Substitution to aluminum capped at <$5/lb copper",
+        ],
+        exit_triggers=[
+            "Copper > $5.50/lb (substitution risk to aluminum)",
+            "Indonesia royalty/permit hit on Grasberg",
+            "Recession cuts industrial copper demand",
+        ],
+        dcf_growth_y1_y5=0.10, dcf_terminal_margin=0.24,
+        dcf_terminal_multiple=15, dcf_wacc=0.09,
+    ),
+    "MP Materials": dict(
+        bull_probability=0.40, base_probability=0.40, bear_probability=0.20,
+        short_term_catalysts=[
+            "Magnet plant first revenue (Q2 2026)",
+            "Auto OEM long-term offtake agreements",
+            "Further DoD funding tranches",
+        ],
+        medium_term_thesis=[
+            "Only fully-integrated rare-earth processor outside China",
+            "DoD price-floor contract de-risks downside",
+            "Mountain Pass + Fort Worth magnet plant = vertical integration finishing 2026",
+        ],
+        long_term_thesis=[
+            "Western diversification mandate is a 20-year tailwind",
+            "Magnet platform unlocks EV + defense + wind end-markets",
+            "China-export-restriction tailwind on neodymium & dysprosium",
+        ],
+        exit_triggers=[
+            "China floods market to suppress prices (price floor breached)",
+            "Magnet plant ramp execution failure",
+            "DoD funding tap dries up",
+        ],
+        dcf_growth_y1_y5=0.40, dcf_terminal_margin=0.18,
+        dcf_terminal_multiple=22, dcf_wacc=0.12,
+    ),
+    "Linde": dict(
+        bull_probability=0.30, base_probability=0.55, bear_probability=0.15,
+        short_term_catalysts=[
+            "Major fab contract wins (TSMC AZ, Samsung TX)",
+            "Hydrogen project FIDs",
+            "Q3 backlog update",
+        ],
+        medium_term_thesis=[
+            "Largest industrial gas company globally — scale + density advantages",
+            "Long-term take-or-pay contracts (avg 15+ years) = annuity-like cash flow",
+            "Semi fab buildout adds ~$5B contracted backlog over 5 years",
+        ],
+        long_term_thesis=[
+            "Hydrogen energy transition is optional upside (10x scale by 2035)",
+            "Defensive AI-infra play — every fab needs gases",
+            "Pricing power on long-term contracts indexed to inflation",
+        ],
+        exit_triggers=[
+            "Industrial activity rolls over for 2+ quarters",
+            "Major contract renegotiation (>$1B)",
+            "Helium price volatility hits margins",
+        ],
+        dcf_growth_y1_y5=0.08, dcf_terminal_margin=0.28,
+        dcf_terminal_multiple=24, dcf_wacc=0.07,
+    ),
+    "Coherent": dict(
+        bull_probability=0.40, base_probability=0.40, bear_probability=0.20,
+        short_term_catalysts=[
+            "800G ramp acceleration",
+            "1.6T product qualification at hyperscalers",
+            "Debt paydown milestones",
+        ],
+        medium_term_thesis=[
+            "Vertically integrated optical components leader",
+            "1.6T ramp drives ASP and margin up",
+            "Co-packaged optics option value 2027+",
+        ],
+        long_term_thesis=[
+            "Optical interconnect bandwidth doubles every 2 years — TAM compounds",
+            "Vertical integration moats vs pure component vendors",
+            "Datacenter intra-rack optical becomes new TAM",
+        ],
+        exit_triggers=[
+            "Hyperscaler capex digestion",
+            "Debt covenant breach",
+            "Innolight (China) wins major Western customer",
+        ],
+        dcf_growth_y1_y5=0.18, dcf_terminal_margin=0.20,
+        dcf_terminal_multiple=18, dcf_wacc=0.10,
+    ),
+    "Microsoft": dict(
+        bull_probability=0.30, base_probability=0.55, bear_probability=0.15,
+        short_term_catalysts=[
+            "Copilot revenue inflection",
+            "Azure AI revenue acceleration",
+            "OpenAI integration milestones",
+        ],
+        medium_term_thesis=[
+            "OpenAI exclusive cloud = de facto monopoly on frontier inference",
+            "Azure AI revenue at $10B+ run-rate, growing 50%+",
+            "Office 365 Copilot adoption widens enterprise moat",
+        ],
+        long_term_thesis=[
+            "Cloud + AI + Office = three reinforcing moats",
+            "Enterprise switching costs are the deepest in tech",
+            "Capital allocation discipline (buybacks + dividends)",
+        ],
+        exit_triggers=[
+            "OpenAI relationship deteriorates",
+            "Azure share losses vs AWS or GCP",
+            "Capex outpacing FCF for >4 quarters",
+        ],
+        dcf_growth_y1_y5=0.14, dcf_terminal_margin=0.42,
+        dcf_terminal_multiple=28, dcf_wacc=0.08,
+    ),
+    "CoreWeave": dict(
+        bull_probability=0.40, base_probability=0.35, bear_probability=0.25,
+        short_term_catalysts=[
+            "Microsoft contract milestones",
+            "New customer wins to dilute concentration",
+            "First positive FCF quarter",
+        ],
+        medium_term_thesis=[
+            "NVIDIA-preferred partner with H100/B200 priority allocation",
+            "Backlog visibility through 2027",
+            "Specialty positioning vs hyperscalers in AI-specific workloads",
+        ],
+        long_term_thesis=[
+            "GPU rental commoditizes — margin compression risk is real",
+            "Customer diversification path is uncertain",
+            "Debt burden is the structural overhang",
+        ],
+        exit_triggers=[
+            "Microsoft contract renewal at lower margin",
+            "GPU rental ASPs decline >20%",
+            "Debt refinancing at significantly worse terms",
+        ],
+        dcf_growth_y1_y5=0.55, dcf_terminal_margin=0.18,
+        dcf_terminal_multiple=18, dcf_wacc=0.13,
+    ),
+    "AMD": dict(
+        bull_probability=0.40, base_probability=0.45, bear_probability=0.15,
+        short_term_catalysts=[
+            "MI400 launch",
+            "Hyperscaler design wins",
+            "EPYC server share gains",
+        ],
+        medium_term_thesis=[
+            "MI300/MI325/MI400 cadence closing gap with NVIDIA",
+            "Meta + Microsoft reference customers for inference",
+            "ROCm ecosystem improving",
+        ],
+        long_term_thesis=[
+            "Inference market is large enough for a credible #2",
+            "Datacenter share at 20-25% would 3x current revenue",
+            "Optionality on Lisa Su's M&A execution",
+        ],
+        exit_triggers=[
+            "NVIDIA software moat doesn't crack",
+            "Margin dilution from low-margin chiplets accelerates",
+            "Two MI-series launches fail to gain hyperscaler traction",
+        ],
+        dcf_growth_y1_y5=0.28, dcf_terminal_margin=0.28,
+        dcf_terminal_multiple=24, dcf_wacc=0.10,
+    ),
+    "Meta Platforms": dict(
+        bull_probability=0.35, base_probability=0.50, bear_probability=0.15,
+        short_term_catalysts=[
+            "Llama 4 release",
+            "AI ad-targeting CPM lift",
+            "Reality Labs cost discipline",
+        ],
+        medium_term_thesis=[
+            "Llama is the OSS reference model",
+            "AI ad-targeting is real revenue contributor",
+            "Capex peak in sight; FCF inflection 2026",
+        ],
+        long_term_thesis=[
+            "Distribution (3B users) is the moat AI alone can't replicate",
+            "Reality Labs optionality (smart glasses + AR)",
+            "Capital allocation discipline (buybacks)",
+        ],
+        exit_triggers=[
+            "Reality Labs cash burn doesn't decline",
+            "Regulatory antitrust hit (forced divestiture)",
+            "AI ad-targeting fails to lift CPMs",
+        ],
+        dcf_growth_y1_y5=0.16, dcf_terminal_margin=0.40,
+        dcf_terminal_multiple=22, dcf_wacc=0.09,
+    ),
+}
+
+
 # ---------- public helpers ----------
 
 def evidence_for(company_name: str, component: str) -> list[dict]:
@@ -1496,13 +1888,24 @@ def findings_for_component(component_name: str) -> list[dict]:
     for c in base:
         c2 = dict(c)
         c2.setdefault("evidence", evidence_for(c["name"], component_name))
-        # Merge in earnings-power + risk/sentiment patches if we have data for this name.
+        # Merge in earnings-power + risk/sentiment + scenarios patches.
         extras = dict(c2.get("extras") or {})
-        for patch in (EARNINGS_POWER.get(c["name"]), RISK_SENTIMENT.get(c["name"])):
+        for patch in (EARNINGS_POWER.get(c["name"]),
+                       RISK_SENTIMENT.get(c["name"]),
+                       SCENARIOS.get(c["name"])):
             if patch:
                 for k, v in patch.items():
                     if v is not None:
                         extras[k] = v
+        # Sensible defaults if no explicit scenario probabilities
+        if extras.get("bull_probability") is None and extras.get("recommendation") in ("STRONG_BUY", "BUY"):
+            extras.setdefault("bull_probability", 0.30)
+            extras.setdefault("base_probability", 0.50)
+            extras.setdefault("bear_probability", 0.20)
+        elif extras.get("bull_probability") is None:
+            extras.setdefault("bull_probability", 0.20)
+            extras.setdefault("base_probability", 0.50)
+            extras.setdefault("bear_probability", 0.30)
         c2["extras"] = extras
         enriched.append(c2)
     return enriched
