@@ -102,6 +102,10 @@ class CompanyExtras(BaseModel):
     risks: list[str] = Field(default_factory=list)
     catalysts: list[str] = Field(default_factory=list)
 
+    # Investor council (filled by the post-scoring council pass)
+    council_verdicts: list[dict] = Field(default_factory=list)
+    council_summary: dict = Field(default_factory=dict)
+
 
 class CompanyRow(BaseModel):
     id: str

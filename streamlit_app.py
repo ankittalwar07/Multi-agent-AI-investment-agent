@@ -144,6 +144,7 @@ except Exception as e:
 from dashboard_utils import (  # noqa: E402
     REC_COLORS, REC_LABELS,
     chart_recommendation_distribution, chart_top_picks_bar, chart_market_structure,
+    consensus_badge,
     fmt_money, fmt_pct, fmt_price, get_top_picks, rec_badge, structure_badge,
     view_to_dataframe,
 )
@@ -191,12 +192,15 @@ sole_source_df = df[df["single_source"] == True]  # noqa: E712
 exp_ret = actionable_df["expected_return_12m"].dropna()
 weighted_exp_ret = exp_ret.mean() if not exp_ret.empty else 0
 
-c1, c2, c3, c4, c5 = st.columns(5)
+unanimous_count = int(df["council_consensus"].isin(["UNANIMOUS_STRONG_BUY", "UNANIMOUS_BUY"]).sum()) if "council_consensus" in df.columns else 0
+
+c1, c2, c3, c4, c5, c6 = st.columns(6)
 c1.metric("STRONG BUY", len(strong_buy_df))
 c2.metric("BUY", len(buy_df))
 c3.metric("Sole-source", len(sole_source_df))
 c4.metric("Components covered", len(view.components))
 c5.metric("Avg expected return (12m)", f"+{weighted_exp_ret * 100:.1f}%")
+c6.metric("Council unanimous", unanimous_count, help="Companies the full council voted BUY or STRONG BUY on")
 
 st.caption(
     f"Coverage as of run **{view.run.id}** &middot; provider **{view.run.provider}** &middot; "
@@ -210,7 +214,10 @@ st.markdown("---")
 st.markdown("## :fire: Top high-conviction picks")
 st.caption("Filtered to STRONG BUY / BUY with HIGH conviction. Click any name to drill into the full thesis.")
 
-top5 = get_top_picks(df, n=5)
+# Re-rank to give a boost to council-backed names
+df_sorted = df.copy()
+df_sorted["_council_boost"] = df_sorted["council_score_pct"].fillna(0) / 100
+top5 = get_top_picks(df_sorted, n=5)
 for _, row in top5.iterrows():
     rec = row["recommendation"]
     exp_ret_pct = (row["expected_return_12m"] or 0) * 100
@@ -220,7 +227,7 @@ for _, row in top5.iterrows():
             st.markdown(
                 f"### {row['name']} "
                 + (f"<span style='color:#94a3b8;font-size:18px;'>· {row['ticker']}</span>" if row['ticker'] else "")
-                + f"<br/>{rec_badge(rec)}",
+                + f"<br/>{rec_badge(rec)} &nbsp; {consensus_badge(row.get('council_consensus'))}",
                 unsafe_allow_html=True,
             )
             st.caption(f"_{row['component']}_  &middot;  {row['conviction'] or '—'} conviction")
@@ -229,7 +236,7 @@ for _, row in top5.iterrows():
             st.caption(f"Mkt cap {fmt_money(row['market_cap_usd'])}")
         with c3:
             st.metric("12m expected", f"+{exp_ret_pct:.0f}%")
-            st.caption(f"Base ${row['base_target']:,.0f}" if row["base_target"] else "")
+            st.caption(f"Council {int(row.get('council_buy_count') or 0)}/6 BUY")
         with c4:
             if row.get("thesis_summary"):
                 st.write(row["thesis_summary"])

@@ -19,6 +19,7 @@ from ..agents.concentration_analyzer import ConcentrationAnalyzer
 from ..agents.decomposer import Decomposer
 from ..agents.synthesizer import Synthesizer
 from ..config import Settings
+from ..council.engine import company_to_view, council_summary, run_council
 from ..llm import LLMProvider
 from ..scoring.moat_rubric import RUBRIC_VERSION
 from ..storage.repository import RunRepository
@@ -232,6 +233,24 @@ class Pipeline:
                 rationale=s.score.rationale,
             )
         self._emit(repo, rid, "info", "analyzer", f"scored {len(scored)} companies")
+
+        # ----- Investor Council -----
+        for s in scored:
+            cid = company_ids.get((s.component_name, s.finding.name))
+            if not cid:
+                continue
+            view = company_to_view(s.finding, s.score, s.component_name)
+            verdicts = run_council(view)
+            summary = council_summary(verdicts)
+            repo.update_company_extras(
+                cid,
+                {
+                    "council_verdicts": [v.model_dump() for v in verdicts],
+                    "council_summary": summary,
+                },
+            )
+        self._emit(repo, rid, "info", "council",
+                   f"council reviewed {len(scored)} companies")
 
         # ----- Synthesizer -----
         synthesizer = Synthesizer(llm=llm)

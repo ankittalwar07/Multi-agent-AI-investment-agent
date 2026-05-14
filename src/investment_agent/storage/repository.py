@@ -158,6 +158,26 @@ class RunRepository:
             )
         return cid
 
+    def update_company_extras(self, company_id: str, patch: dict) -> None:
+        """Merge new fields into a company's extras_json."""
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT extras_json FROM company WHERE id=?", (company_id,)
+            ).fetchone()
+            if not row:
+                return
+            current: dict = {}
+            if row["extras_json"]:
+                try:
+                    current = json.loads(row["extras_json"]) or {}
+                except json.JSONDecodeError:
+                    current = {}
+            current.update(patch)
+            conn.execute(
+                "UPDATE company SET extras_json=? WHERE id=?",
+                (json.dumps(current), company_id),
+            )
+
     def add_evidence(
         self,
         *,

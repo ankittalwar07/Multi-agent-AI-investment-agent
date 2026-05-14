@@ -24,9 +24,11 @@ if str(ROOT) not in sys.path:
 
 from dashboard_utils import (  # noqa: E402
     chart_analyst_consensus, chart_price_targets,
+    consensus_badge,
     fmt_money, fmt_pct, fmt_price, fmt_ratio, rec_badge, structure_badge,
     view_to_dataframe,
 )
+from investment_agent.council.personas import BY_KEY as INVESTOR_BY_KEY  # noqa: E402
 from investment_agent.storage.repository import RunRepository  # noqa: E402
 
 st.title("Investment Thesis")
@@ -160,6 +162,62 @@ with right:
             )
     else:
         st.caption("Insufficient data for price-target range.")
+
+st.markdown("---")
+
+# ---------------- COUNCIL OF LEGENDS ----------------
+verdicts = extras.council_verdicts or []
+summary = extras.council_summary or {}
+
+st.markdown("### :classical_building: Council of Legendary Investors")
+st.caption(
+    "Each council member applies their distinct philosophy to this name. Use the spread "
+    "to gauge conviction: a unanimous BUY is high-confidence; a divided council often "
+    "means alpha (the market hasn't decided yet)."
+)
+
+if verdicts:
+    cc1, cc2, cc3, cc4 = st.columns([2, 1, 1, 1])
+    cc1.markdown(
+        f"**Consensus:** {consensus_badge(summary.get('consensus'))}",
+        unsafe_allow_html=True,
+    )
+    cc2.metric("Council score", f"{summary.get('score_pct', 0):+.0f}%")
+    cc3.metric("BUY votes", f"{summary.get('buy_count', 0)}/{len(verdicts)}")
+    cc4.metric("HIGH-conv BUYs", summary.get("high_conviction_buy_count", 0))
+
+    st.write("")
+    # Render each investor's verdict as a card row
+    for vd in verdicts:
+        persona = INVESTOR_BY_KEY.get(vd["investor_key"])
+        with st.container(border=True):
+            col_a, col_b, col_c = st.columns([3, 1, 6])
+            with col_a:
+                avatar = persona.avatar if persona else ":bust_in_silhouette:"
+                style_str = f" · _{persona.style}_" if persona else ""
+                st.markdown(
+                    f"{avatar} **{vd['investor_name']}**{style_str}",
+                    unsafe_allow_html=True,
+                )
+                if persona:
+                    st.caption(persona.philosophy)
+            with col_b:
+                st.markdown(
+                    rec_badge(vd["verdict"]) + f"<br/><small>{vd['conviction']} conv</small>",
+                    unsafe_allow_html=True,
+                )
+            with col_c:
+                for r in vd.get("reasoning", [])[:3]:
+                    st.markdown(f"- {r}")
+                if vd.get("top_positive") or vd.get("top_concern"):
+                    pos = vd.get("top_positive") or ""
+                    concern = vd.get("top_concern") or ""
+                    st.caption(
+                        f"&nbsp;&nbsp;:white_check_mark: {pos}"
+                        + (f" &nbsp;|&nbsp; :warning: {concern}" if concern else "")
+                    )
+else:
+    st.caption("Council has not reviewed this run.")
 
 st.markdown("---")
 

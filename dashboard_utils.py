@@ -12,13 +12,15 @@ from investment_agent.storage.models import CompanyRow, RunView
 
 # ---------------------- recommendation logic ----------------------
 
-REC_ORDER = ["STRONG_BUY", "BUY", "HOLD", "SELL", "STRONG_SELL", "N/A", "SEE_TSM"]
+REC_ORDER = ["STRONG_BUY", "BUY", "HOLD", "SELL", "STRONG_SELL", "PASS", "AVOID", "N/A", "SEE_TSM"]
 REC_COLORS = {
     "STRONG_BUY": "#16a34a",
     "BUY": "#22c55e",
     "HOLD": "#eab308",
     "SELL": "#f97316",
     "STRONG_SELL": "#dc2626",
+    "PASS": "#94a3b8",
+    "AVOID": "#dc2626",
     "N/A": "#64748b",
     "SEE_TSM": "#64748b",
 }
@@ -28,8 +30,25 @@ REC_LABELS = {
     "HOLD": "HOLD",
     "SELL": "SELL",
     "STRONG_SELL": "STRONG SELL",
+    "PASS": "PASS",
+    "AVOID": "AVOID",
     "N/A": "—",
     "SEE_TSM": "see parent",
+}
+
+CONSENSUS_COLORS = {
+    "UNANIMOUS_STRONG_BUY": "#16a34a",
+    "UNANIMOUS_BUY": "#22c55e",
+    "MAJORITY_BUY": "#84cc16",
+    "DIVIDED": "#64748b",
+    "MAJORITY_AVOID": "#dc2626",
+}
+CONSENSUS_LABELS = {
+    "UNANIMOUS_STRONG_BUY": "Unanimous STRONG BUY",
+    "UNANIMOUS_BUY": "Unanimous BUY",
+    "MAJORITY_BUY": "Majority BUY",
+    "DIVIDED": "Divided council",
+    "MAJORITY_AVOID": "Majority PASS/AVOID",
 }
 
 STRUCTURE_COLORS = {
@@ -47,6 +66,15 @@ def rec_badge(rec: str | None) -> str:
     color = REC_COLORS.get(rec, "#64748b")
     label = REC_LABELS.get(rec, rec)
     return f'<span style="background:{color};color:white;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;">{label}</span>'
+
+
+def consensus_badge(label: str | None) -> str:
+    """Colored pill for a council consensus label."""
+    if not label:
+        return "—"
+    color = CONSENSUS_COLORS.get(label, "#475569")
+    text = CONSENSUS_LABELS.get(label, label)
+    return f'<span style="background:{color};color:white;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;">{text}</span>'
 
 
 def structure_badge(s: str | None) -> str:
@@ -104,6 +132,8 @@ DF_COLUMNS = [
     "price_target_low", "price_target_avg", "price_target_high",
     "recommendation", "conviction", "expected_return_12m",
     "bull_target", "base_target", "bear_target", "thesis_summary",
+    "council_consensus", "council_score_pct", "council_buy_count",
+    "council_strong_buy_count", "council_high_conv_buy",
 ]
 
 
@@ -152,6 +182,11 @@ def view_to_dataframe(view: RunView) -> pd.DataFrame:
                 "bull_target": e.bull_target, "base_target": e.base_target,
                 "bear_target": e.bear_target,
                 "thesis_summary": e.thesis_summary,
+                "council_consensus": (e.council_summary or {}).get("consensus"),
+                "council_score_pct": (e.council_summary or {}).get("score_pct"),
+                "council_buy_count": (e.council_summary or {}).get("buy_count"),
+                "council_strong_buy_count": (e.council_summary or {}).get("strong_buy_count"),
+                "council_high_conv_buy": (e.council_summary or {}).get("high_conviction_buy_count"),
             }
         )
     if rows:
@@ -385,6 +420,84 @@ def chart_demand_supply(df_component: pd.DataFrame, component_name: str) -> go.F
         title=f"Demand vs supply (illustrative) — {component_name}",
         yaxis_title="Index (2024 = 100)",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    return fig
+
+
+def chart_council_voting_matrix(df: pd.DataFrame, view, top_n: int = 25) -> go.Figure:
+    """Heatmap: companies (rows) × investors (cols), colored by verdict score."""
+    from investment_agent.council.personas import COUNCIL
+
+    if df.empty:
+        return _empty_fig("No companies yet")
+
+    # Build a (company × investor) score matrix using the persisted verdicts
+    verdict_by_co_inv: dict[tuple[str, str], dict] = {}
+    for c in view.companies:
+        for vd in c.extras.council_verdicts:
+            verdict_by_co_inv[(c.id, vd["investor_key"])] = vd
+
+    # Pick top-N most-loved by the council
+    top_df = df.copy()
+    top_df["_sort"] = top_df["council_score_pct"].fillna(-9999)
+    top_df = top_df.sort_values("_sort", ascending=False).head(top_n).iloc[::-1]
+
+    investor_keys = [p.key for p in COUNCIL]
+    investor_names = [p.name.split()[-1] for p in COUNCIL]
+
+    z = []
+    text = []
+    hover = []
+    for _, row in top_df.iterrows():
+        z_row = []
+        t_row = []
+        h_row = []
+        for k in investor_keys:
+            vd = verdict_by_co_inv.get((row["id"], k))
+            if vd:
+                z_row.append(vd["score"])
+                t_row.append({"STRONG_BUY": "SB", "BUY": "B", "HOLD": "H",
+                              "PASS": "P", "AVOID": "A"}.get(vd["verdict"], "·"))
+                h_row.append(
+                    f"<b>{row['name']}</b><br>"
+                    f"{vd['investor_name']}: <b>{vd['verdict']}</b> "
+                    f"({vd['conviction']})<br>"
+                    f"{vd['reasoning'][0] if vd['reasoning'] else ''}"
+                )
+            else:
+                z_row.append(0); t_row.append("—"); h_row.append("")
+        z.append(z_row); text.append(t_row); hover.append(h_row)
+
+    fig = go.Figure(go.Heatmap(
+        z=z, x=investor_names, y=top_df["name"].tolist(),
+        colorscale=[
+            [0.0, "#7f1d1d"], [0.25, "#dc2626"], [0.5, "#475569"],
+            [0.75, "#22c55e"], [1.0, "#15803d"],
+        ],
+        zmin=-2, zmax=2, showscale=False,
+        text=text, texttemplate="%{text}", textfont=dict(size=11, color="white"),
+        hovertext=hover, hoverinfo="text",
+    ))
+    fig.update_layout(
+        margin=dict(l=0, r=0, t=10, b=0),
+        height=max(360, 24 * len(top_df) + 80),
+        xaxis_title="", yaxis_title="",
+        xaxis=dict(side="top"),
+    )
+    return fig
+
+
+def chart_council_score_distribution(df: pd.DataFrame) -> go.Figure:
+    if df.empty or "council_score_pct" not in df.columns:
+        return _empty_fig("No council data")
+    fig = go.Figure(go.Histogram(
+        x=df["council_score_pct"].dropna(),
+        nbinsx=20,
+        marker=dict(color="#22d3ee"),
+    ))
+    fig.update_layout(
+        margin=dict(l=0, r=0, t=10, b=0), height=240,
+        xaxis_title="Council score (%)", yaxis_title="# companies",
     )
     return fig
 

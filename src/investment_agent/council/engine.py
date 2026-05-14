@@ -1,0 +1,111 @@
+"""Apply every council persona to a company and return their verdicts."""
+from __future__ import annotations
+
+from typing import Any
+
+from .personas import COUNCIL, BY_KEY
+from .rubrics import RUBRICS, apply_rubric
+from .verdicts import InvestorVerdict
+
+
+def company_to_view(
+    finding: Any,
+    score_obj: Any,
+    component_name: str,
+) -> dict:
+    """Flatten a ScoredCompany into the dict shape rubrics expect."""
+    e = finding.extras or {}
+    return {
+        "name": finding.name,
+        "ticker": finding.ticker,
+        "is_public": finding.is_public,
+        "component": component_name,
+        "market_share_pct": finding.market_share_pct,
+        "market_share_bucket": finding.market_share_bucket,
+        "single_source": finding.single_source,
+        "demand_signal": finding.demand_signal,
+        "valuation_usd": finding.valuation_usd,
+        "composite": score_obj.composite if score_obj else 0,
+        # Extras (financials, structure, recommendations)
+        "structure": e.get("structure") if isinstance(e, dict) else getattr(e, "structure", None),
+        "supply_status": e.get("supply_status") if isinstance(e, dict) else getattr(e, "supply_status", None),
+        "stock_price": e.get("stock_price") if isinstance(e, dict) else getattr(e, "stock_price", None),
+        "market_cap_usd": e.get("market_cap_usd") if isinstance(e, dict) else getattr(e, "market_cap_usd", None),
+        "pe_trailing": e.get("pe_trailing") if isinstance(e, dict) else getattr(e, "pe_trailing", None),
+        "pe_forward": e.get("pe_forward") if isinstance(e, dict) else getattr(e, "pe_forward", None),
+        "peg": e.get("peg") if isinstance(e, dict) else getattr(e, "peg", None),
+        "ev_ebitda": e.get("ev_ebitda") if isinstance(e, dict) else getattr(e, "ev_ebitda", None),
+        "revenue_growth_ttm": e.get("revenue_growth_ttm") if isinstance(e, dict) else getattr(e, "revenue_growth_ttm", None),
+        "revenue_growth_fwd": e.get("revenue_growth_fwd") if isinstance(e, dict) else getattr(e, "revenue_growth_fwd", None),
+        "operating_margin": e.get("operating_margin") if isinstance(e, dict) else getattr(e, "operating_margin", None),
+        "fcf_yield": e.get("fcf_yield") if isinstance(e, dict) else getattr(e, "fcf_yield", None),
+        "dividend_yield": e.get("dividend_yield") if isinstance(e, dict) else getattr(e, "dividend_yield", None),
+        "expected_return_12m": e.get("expected_return_12m") if isinstance(e, dict) else getattr(e, "expected_return_12m", None),
+    }
+
+
+def run_council(company_view: dict) -> list[InvestorVerdict]:
+    """Apply every council member's rubric to one company."""
+    verdicts: list[InvestorVerdict] = []
+    for persona in COUNCIL:
+        v = apply_rubric(persona.key, company_view)
+        v.investor_name = persona.name
+        verdicts.append(v)
+    return verdicts
+
+
+def council_summary(verdicts: list[InvestorVerdict]) -> dict:
+    """Aggregate stats for a company's council verdicts."""
+    score_sum = sum(v.score for v in verdicts)
+    buy_count = sum(1 for v in verdicts if v.verdict in ("STRONG_BUY", "BUY"))
+    strong_buy_count = sum(1 for v in verdicts if v.verdict == "STRONG_BUY")
+    avoid_count = sum(1 for v in verdicts if v.verdict in ("AVOID", "PASS"))
+    high_conv_buy = sum(
+        1 for v in verdicts
+        if v.verdict in ("STRONG_BUY", "BUY") and v.conviction == "HIGH"
+    )
+    n = len(verdicts) or 1
+    return {
+        "n_members": len(verdicts),
+        "score_sum": score_sum,           # -2n to +2n
+        "score_pct": (score_sum / (2 * n)) * 100,  # -100 to +100
+        "buy_count": buy_count,
+        "strong_buy_count": strong_buy_count,
+        "avoid_count": avoid_count,
+        "high_conviction_buy_count": high_conv_buy,
+        "unanimous_buy": buy_count == len(verdicts),
+        "consensus": _consensus_label(verdicts),
+    }
+
+
+def _consensus_label(verdicts: list[InvestorVerdict]) -> str:
+    n = len(verdicts) or 1
+    buy_pct = sum(1 for v in verdicts if v.verdict in ("STRONG_BUY", "BUY")) / n
+    sb_pct = sum(1 for v in verdicts if v.verdict == "STRONG_BUY") / n
+    avoid_pct = sum(1 for v in verdicts if v.verdict in ("PASS", "AVOID")) / n
+    if sb_pct >= 0.66:
+        return "UNANIMOUS_STRONG_BUY"
+    if buy_pct >= 0.83:
+        return "UNANIMOUS_BUY"
+    if buy_pct >= 0.5:
+        return "MAJORITY_BUY"
+    if avoid_pct >= 0.66:
+        return "MAJORITY_AVOID"
+    return "DIVIDED"
+
+
+CONSENSUS_LABELS = {
+    "UNANIMOUS_STRONG_BUY": "Unanimous STRONG BUY",
+    "UNANIMOUS_BUY": "Unanimous BUY",
+    "MAJORITY_BUY": "Majority BUY",
+    "MAJORITY_AVOID": "Majority PASS / AVOID",
+    "DIVIDED": "Divided council",
+}
+
+CONSENSUS_COLORS = {
+    "UNANIMOUS_STRONG_BUY": "#16a34a",
+    "UNANIMOUS_BUY": "#22c55e",
+    "MAJORITY_BUY": "#84cc16",
+    "MAJORITY_AVOID": "#dc2626",
+    "DIVIDED": "#64748b",
+}
