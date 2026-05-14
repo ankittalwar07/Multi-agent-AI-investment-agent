@@ -29,6 +29,16 @@ def _v(verdict: str, conviction: str, reasoning: list[str],
     )
 
 
+def fmt_money_inline(v: float | None) -> str:
+    if v is None:
+        return "—"
+    if abs(v) >= 1e9:
+        return f"${v/1e9:.1f}B"
+    if abs(v) >= 1e6:
+        return f"${v/1e6:.0f}M"
+    return f"${v:,.0f}"
+
+
 def _moat(c: CompanyView) -> float:
     return float(c.get("composite") or 0)
 
@@ -58,6 +68,14 @@ def _capex_int(c): return c.get("capex_to_sales")
 def _fcf_after_capex(c): return c.get("fcf_margin_after_capex")
 def _rd_intensity(c): return c.get("rd_to_sales")
 def _shareholder_yield(c): return c.get("total_shareholder_yield")
+def _top1(c): return c.get("top_1_customer_pct")
+def _top3(c): return c.get("top_3_customer_pct")
+def _china_pct(c): return c.get("china_revenue_pct")
+def _hs_beta(c): return c.get("hyperscaler_capex_beta")
+def _ai_pct(c): return c.get("ai_revenue_pct")
+def _insider(c): return c.get("insider_net_buying_6m_usd")
+def _short(c): return c.get("short_interest_pct")
+def _eps_rev(c): return c.get("eps_revisions_3m_pct")
 
 
 # ---------------- Warren Buffett ----------------
@@ -355,33 +373,62 @@ def graham(c: CompanyView) -> dict:
 # ---------------- Stanley Druckenmiller ----------------
 
 def druck(c: CompanyView) -> dict:
-    """Concentrated bets where macro + supply/demand setup align."""
+    """Concentrated bets where macro + supply/demand + hyperscaler-capex setup align.
+
+    Now anchored on quantified hyperscaler capex beta (1.0+ = real leverage)
+    and EPS revisions (revisions trending up = the trade is working).
+    """
     reasoning: list[str] = []
     supply = _supply(c)
     demand = _demand(c)
     sole = _sole(c)
     bucket = _bucket(c) or ""
     rev_fwd = _rev_fwd(c) or 0
+    hs_beta = _hs_beta(c)
+    eps_rev = _eps_rev(c) or 0
+    ai_pct = _ai_pct(c) or 0
 
     # Druck wants a clear setup
     setup_strength = 0
     if supply == "constrained":
-        setup_strength += 2; reasoning.append("Supply-constrained — pricing power, capacity backlog, the holy grail.")
+        setup_strength += 2
+        reasoning.append("Supply-constrained — pricing power, capacity backlog, the holy grail.")
     if sole or bucket in ("sole", ">75"):
-        setup_strength += 2; reasoning.append("Sole or dominant supplier — owns the bottleneck.")
+        setup_strength += 2
+        reasoning.append("Sole or dominant supplier — owns the bottleneck.")
     if any(w in demand for w in ("shortage", "backlog", "accelerating", "exponential", "sold out")):
-        setup_strength += 1; reasoning.append("Demand acceleration confirms the macro thesis.")
+        setup_strength += 1
+        reasoning.append("Demand acceleration confirms the macro thesis.")
     if rev_fwd >= 0.25:
-        setup_strength += 1; reasoning.append(f"Forward revenue ({rev_fwd*100:.0f}%) backs the secular call.")
+        setup_strength += 1
+        reasoning.append(f"Forward revenue ({rev_fwd*100:.0f}%) backs the secular call.")
+
+    # Hyperscaler capex beta — the AI macro the whole portfolio leans on
+    if hs_beta is not None:
+        if hs_beta >= 1.5:
+            setup_strength += 2
+            reasoning.append(f"Hyperscaler capex beta of {hs_beta:.1f}x — direct leverage to the AI capex cycle.")
+        elif hs_beta >= 1.0:
+            setup_strength += 1
+            reasoning.append(f"Hyperscaler capex beta of {hs_beta:.1f}x — solid macro tailwind.")
+
+    # Earnings revisions trending up = the trade is working
+    if eps_rev >= 0.10:
+        setup_strength += 1
+        reasoning.append(f"EPS revisions {eps_rev*100:+.0f}% over 90 days — momentum confirms.")
+    elif eps_rev <= -0.05:
+        setup_strength -= 2
+        reasoning.append(f"EPS revisions {eps_rev*100:+.0f}% — street is cutting; thesis is breaking.")
 
     # Druck won't bet on weak setups
-    if setup_strength == 0:
+    if setup_strength <= 0:
         return _v("PASS", "MEDIUM",
-                  ["No clear macro/capacity edge — not the kind of asymmetric setup I bet large on."],
+                  ["No clear macro/capacity edge — not the kind of asymmetric setup I bet large on."]
+                  + reasoning,
                   None, "No edge in this setup.")
 
     # Concentrated bet sizing
-    if setup_strength >= 4:
+    if setup_strength >= 5:
         verdict, conv = "STRONG_BUY", "HIGH"
         reasoning.append("This is the kind of trade you 'go for the jugular' on.")
     elif setup_strength >= 3:
@@ -392,8 +439,11 @@ def druck(c: CompanyView) -> dict:
         verdict, conv = "HOLD", "MEDIUM"
 
     return _v(verdict, conv, reasoning,
-              pos="Supply > demand setup" if supply == "constrained" else "Secular tailwind",
-              concern="Crowded trade risk" if bucket in ("sole", ">75") else "Watch macro rollover")
+              pos=(f"Hyperscaler beta {hs_beta:.1f}x + supply constrained"
+                   if hs_beta and hs_beta >= 1.0 and supply == "constrained"
+                   else ("Supply > demand setup" if supply == "constrained" else "Secular tailwind")),
+              concern=("Capex cycle digestion would hit you hardest" if hs_beta and hs_beta >= 1.5
+                       else "Watch macro rollover"))
 
 
 # ---------------- Cathie Wood ----------------
@@ -452,7 +502,11 @@ def wood(c: CompanyView) -> dict:
 # ---------------- Howard Marks ----------------
 
 def marks(c: CompanyView) -> dict:
-    """Cycle awareness + second-level thinking. The crowd matters as much as the company."""
+    """Cycle awareness + second-level thinking. The crowd matters as much as the company.
+
+    Now quantifies crowding via insider selling, low short interest (no skeptics
+    left), and analyst-revision asymmetry (consensus already raised, no upside left).
+    """
     reasoning: list[str] = []
     pe_f = _pe_f(c)
     pe_t = _pe_t(c)
@@ -460,14 +514,29 @@ def marks(c: CompanyView) -> dict:
     rev_fwd = _rev_fwd(c) or 0
     bucket = _bucket(c) or ""
     structure = _structure(c)
+    insider = _insider(c) or 0
+    short = _short(c)
+    rev_up = c.get("analyst_revisions_up") or 0
+    rev_dn = c.get("analyst_revisions_down") or 0
 
     # Marks cares about euphoria signals as much as fundamentals
     euphoria_score = 0
     if pe_t and pe_t > 35: euphoria_score += 2
     if pe_f and pe_f > 30: euphoria_score += 2
-    if rev_fwd > 0.50: euphoria_score += 1  # very high growth often = priced perfection
-    if bucket == ">75" and structure in ("monopoly", "oligopoly"): euphoria_score += 1  # crowded long
-    if (c.get("analyst_buy") or 0) >= 30 and (c.get("analyst_sell") or 0) <= 1: euphoria_score += 1  # consensus love
+    if rev_fwd > 0.50: euphoria_score += 1
+    if bucket == ">75" and structure in ("monopoly", "oligopoly"): euphoria_score += 1
+    if (c.get("analyst_buy") or 0) >= 30 and (c.get("analyst_sell") or 0) <= 1:
+        euphoria_score += 1
+    # New: quantified crowding signals
+    if short is not None and short < 0.012:
+        euphoria_score += 1
+        reasoning.append(f"Short interest under 1.2% — no marginal skeptics; positioning is one-sided.")
+    if insider < -50_000_000:
+        euphoria_score += 1
+        reasoning.append(f"Insiders net-sold {fmt_money_inline(-insider)} in the last 6 months — they're trimming the top.")
+    if rev_up >= 30 and rev_dn <= 4:
+        euphoria_score += 1
+        reasoning.append(f"{rev_up} street estimates raised vs {rev_dn} cut — consensus already revised up, no upside left.")
 
     # Quality consideration
     quality_ok = moat >= 60
@@ -531,7 +600,11 @@ def marks(c: CompanyView) -> dict:
 # ---------------- Michael Burry ----------------
 
 def burry(c: CompanyView) -> dict:
-    """Bubble caller. Math over narrative. Short the consensus when the numbers don't work."""
+    """Bubble caller. Math over narrative. Short the consensus when the numbers don't work.
+
+    Now flags insider selling (top-tick signal) and looks for short-squeeze setups
+    when something has crashed but the numbers actually work.
+    """
     reasoning: list[str] = []
     pe_f = _pe_f(c)
     pe_t = _pe_t(c)
@@ -541,6 +614,9 @@ def burry(c: CompanyView) -> dict:
     fcf = _fcf(c)
     bucket = _bucket(c) or ""
     component = c.get("component", "")
+    insider = _insider(c) or 0
+    short = _short(c)
+    eps_rev = _eps_rev(c) or 0
 
     if not _is_public(c):
         return _v("PASS", "MEDIUM",
@@ -554,6 +630,10 @@ def burry(c: CompanyView) -> dict:
     if peg is not None and peg > 2.5: bubble_flags.append(f"PEG {peg:.1f}")
     if op is not None and op < 0: bubble_flags.append(f"negative op margin ({op*100:.0f}%)")
     if fcf is not None and fcf < -0.05: bubble_flags.append(f"burning cash (FCF yield {fcf*100:.1f}%)")
+    if insider < -50_000_000:
+        bubble_flags.append(f"insiders net-sold {fmt_money_inline(-insider)}")
+    if eps_rev <= -0.05:
+        bubble_flags.append(f"EPS revisions {eps_rev*100:+.0f}%")
 
     # Capex-heavy AI hype names
     AI_HYPE_LAYERS = {"AI Accelerator Silicon", "Foundation Model Labs", "GPU Neoclouds",
@@ -592,6 +672,13 @@ def burry(c: CompanyView) -> dict:
     if pe_f is not None and pe_f < 15: score += 2; reasoning.append(f"Forward P/E {pe_f:.0f}x is value-investor territory.")
     if peg is not None and peg < 1.0: score += 1; reasoning.append(f"PEG {peg:.2f} — growth essentially free.")
     if fcf is not None and fcf > 0.05: score += 1; reasoning.append(f"FCF yield {fcf*100:.1f}% is real cash.")
+    # Short-squeeze setup signals
+    if short is not None and short >= 0.10 and (pe_f is None or pe_f < 25):
+        score += 2
+        reasoning.append(f"Short interest {short*100:.0f}% on a name that isn't extreme — squeeze setup if the thesis flips.")
+    if insider > 5_000_000:
+        score += 1
+        reasoning.append(f"Insiders net-bought {fmt_money_inline(insider)} — they see something the street doesn't.")
 
     if score >= 4:
         verdict, conv = "STRONG_BUY", "HIGH"
@@ -613,7 +700,11 @@ def burry(c: CompanyView) -> dict:
 # ---------------- Ray Dalio ----------------
 
 def dalio(c: CompanyView) -> dict:
-    """Macro + debt cycle + geopolitics. Diversify, avoid concentrated geopolitical chokepoints."""
+    """Macro + debt cycle + geopolitics. Diversify, avoid concentrated geopolitical chokepoints.
+
+    Now uses quantified China revenue % and top-1 customer % to make the
+    geopolitical chokepoint case numeric, not narrative.
+    """
     reasoning: list[str] = []
     hq = (c.get("hq_country") or "").lower()
     customer = (c.get("customer_concentration") or "").lower()
@@ -622,15 +713,26 @@ def dalio(c: CompanyView) -> dict:
     div = _div(c) or 0
     pe_f = _pe_f(c)
     sole = _sole(c)
+    china_pct = _china_pct(c)
+    top1 = _top1(c)
 
     # Geopolitical risk overlay
     geopolitical_risk = 0
     if any(w in hq for w in ("taiwan", "china", "korea")):
         geopolitical_risk += 2
         reasoning.append(f"Headquartered in {c.get('hq_country')} — meaningful geopolitical concentration risk.")
-    if "china" in customer or "taiwan" in customer:
+    if china_pct is not None and china_pct >= 0.25:
+        geopolitical_risk += 2
+        reasoning.append(f"China revenue exposure {china_pct*100:.0f}% — export-control / tariff risk is material.")
+    elif china_pct is not None and china_pct >= 0.15:
+        geopolitical_risk += 1
+        reasoning.append(f"China revenue exposure {china_pct*100:.0f}% — meaningful but not dominant.")
+    elif "china" in customer or "taiwan" in customer:
         geopolitical_risk += 1
         reasoning.append("Customer base has Taiwan/China concentration — export-control exposure.")
+    if top1 is not None and top1 >= 0.40:
+        geopolitical_risk += 1
+        reasoning.append(f"Single-customer concentration {top1*100:.0f}% — too narrow a base for all-weather portfolio.")
 
     # All-weather scoring
     aw_score = 0

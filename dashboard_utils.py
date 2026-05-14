@@ -138,6 +138,11 @@ DF_COLUMNS = [
     "net_debt_usd", "debt_to_ebitda", "interest_coverage", "current_ratio",
     "capex_to_sales", "capex_guidance_trend", "fcf_margin_after_capex",
     "rd_to_sales", "rd_trend", "buyback_yield", "total_shareholder_yield",
+    "top_1_customer_pct", "top_3_customer_pct", "top_10_customer_pct",
+    "china_revenue_pct", "hyperscaler_capex_beta", "ai_revenue_pct",
+    "insider_net_buying_6m_usd", "short_interest_pct", "days_to_cover",
+    "eps_revisions_3m_pct", "analyst_revisions_up", "analyst_revisions_down",
+    "institutional_ownership_pct",
 ]
 
 
@@ -202,6 +207,20 @@ def view_to_dataframe(view: RunView) -> pd.DataFrame:
                 "rd_to_sales": e.rd_to_sales, "rd_trend": e.rd_trend,
                 "buyback_yield": e.buyback_yield,
                 "total_shareholder_yield": e.total_shareholder_yield,
+                # Risk & sentiment (Pass 2)
+                "top_1_customer_pct": e.top_1_customer_pct,
+                "top_3_customer_pct": e.top_3_customer_pct,
+                "top_10_customer_pct": e.top_10_customer_pct,
+                "china_revenue_pct": e.china_revenue_pct,
+                "hyperscaler_capex_beta": e.hyperscaler_capex_beta,
+                "ai_revenue_pct": e.ai_revenue_pct,
+                "insider_net_buying_6m_usd": e.insider_net_buying_6m_usd,
+                "short_interest_pct": e.short_interest_pct,
+                "days_to_cover": e.days_to_cover,
+                "eps_revisions_3m_pct": e.eps_revisions_3m_pct,
+                "analyst_revisions_up": e.analyst_revisions_up,
+                "analyst_revisions_down": e.analyst_revisions_down,
+                "institutional_ownership_pct": e.institutional_ownership_pct,
             }
         )
     if rows:
@@ -514,6 +533,40 @@ def chart_council_score_distribution(df: pd.DataFrame) -> go.Figure:
         margin=dict(l=0, r=0, t=10, b=0), height=240,
         xaxis_title="Council score (%)", yaxis_title="# companies",
     )
+    return fig
+
+
+def chart_hyperscaler_capex_sensitivity(df: pd.DataFrame, top_n: int = 18) -> go.Figure:
+    """Horizontal bar — which companies have the highest revenue beta to
+    combined MSFT+GOOGL+AMZN+META capex. The portfolio's macro exposure map."""
+    if df.empty or "hyperscaler_capex_beta" not in df.columns:
+        return _empty_fig("No capex-sensitivity data yet")
+    sub = df.dropna(subset=["hyperscaler_capex_beta"]).copy()
+    if sub.empty:
+        return _empty_fig("No capex-sensitivity data yet")
+    sub = sub.sort_values("hyperscaler_capex_beta", ascending=False).head(top_n).iloc[::-1]
+    sub["label"] = sub["name"] + " · " + sub["ticker"].fillna("—")
+    # Color by recommendation
+    sub["_color"] = sub["recommendation"].map(REC_COLORS).fillna("#64748b")
+    fig = go.Figure(go.Bar(
+        x=sub["hyperscaler_capex_beta"], y=sub["label"], orientation="h",
+        marker=dict(color=sub["_color"]),
+        text=[f"{b:.1f}x" for b in sub["hyperscaler_capex_beta"]],
+        textposition="outside",
+        hovertemplate=(
+            "<b>%{y}</b><br>"
+            "Hyperscaler capex beta: %{x:.1f}x<br>"
+            "<extra></extra>"
+        ),
+    ))
+    fig.update_layout(
+        margin=dict(l=0, r=24, t=10, b=0),
+        height=max(360, 28 * len(sub) + 60),
+        xaxis_title="Revenue beta to MSFT+GOOGL+AMZN+META capex",
+        yaxis_title="",
+    )
+    fig.add_vline(x=1.0, line=dict(color="#94a3b8", dash="dash"),
+                   annotation_text="parity (1.0x)", annotation_position="top right")
     return fig
 
 

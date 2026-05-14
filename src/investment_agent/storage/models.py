@@ -97,6 +97,22 @@ class CompanyExtras(BaseModel):
     buyback_yield: float | None = None
     total_shareholder_yield: float | None = None
 
+    # Risk & sentiment (Pass 2)
+    top_1_customer_pct: float | None = None      # 0.40 = top customer = 40% of revenue
+    top_3_customer_pct: float | None = None
+    top_10_customer_pct: float | None = None
+    china_revenue_pct: float | None = None
+    geographic_mix: dict | None = None           # {"US": 0.6, "China": 0.15, ...}
+    hyperscaler_capex_beta: float | None = None  # rev beta to MSFT+GOOGL+AMZN+META capex
+    ai_revenue_pct: float | None = None          # % of revenue tied to AI/datacenter
+    insider_net_buying_6m_usd: float | None = None   # positive = net insider buying
+    short_interest_pct: float | None = None      # 0.05 = 5% of float
+    days_to_cover: float | None = None
+    eps_revisions_3m_pct: float | None = None    # 0.05 = +5% revisions over 90 days
+    analyst_revisions_up: int | None = None
+    analyst_revisions_down: int | None = None
+    institutional_ownership_pct: float | None = None
+
     # Analyst consensus
     analyst_buy: int | None = None
     analyst_hold: int | None = None

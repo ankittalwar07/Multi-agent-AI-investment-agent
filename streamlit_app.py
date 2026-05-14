@@ -143,6 +143,7 @@ except Exception as e:
 
 from dashboard_utils import (  # noqa: E402
     REC_COLORS, REC_LABELS,
+    chart_hyperscaler_capex_sensitivity,
     chart_recommendation_distribution, chart_top_picks_bar, chart_market_structure,
     consensus_badge,
     fmt_money, fmt_pct, fmt_price, get_top_picks, rec_badge, structure_badge,
@@ -263,6 +264,18 @@ st.markdown("---")
 st.markdown("## Expected 12-month return — top 10")
 st.plotly_chart(chart_top_picks_bar(df, n=10), use_container_width=True)
 
+
+st.markdown("---")
+
+
+# ---------------- HYPERSCALER CAPEX SENSITIVITY ----------------
+st.markdown("## :electric_plug: Hyperscaler capex exposure map")
+st.caption(
+    "Revenue beta to combined Microsoft + Google + Amazon + Meta capex. The "
+    "vertical line at 1.0x is parity — anything above is real leverage to the "
+    "AI capex cycle. The portfolio's macro picture in one chart."
+)
+st.plotly_chart(chart_hyperscaler_capex_sensitivity(df, top_n=18), use_container_width=True)
 
 st.markdown("---")
 

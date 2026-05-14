@@ -205,6 +205,106 @@ if flags:
 
 st.markdown("---")
 
+
+# ---------------- RISK & SENTIMENT (Pass 2) ----------------
+st.markdown("### :rotating_light: Risk & sentiment")
+st.caption(
+    "Concentration, capex sensitivity, and positioning signals. Where the dollars "
+    "come from, who's betting on it, and whether the consensus has already played out."
+)
+
+# Row 1 — Customer concentration
+rs1, rs2, rs3, rs4 = st.columns(4)
+top1 = extras.top_1_customer_pct
+top3 = extras.top_3_customer_pct
+top10 = extras.top_10_customer_pct
+china = extras.china_revenue_pct
+rs1.metric("Top customer", fmt_pct(top1) if top1 is not None else "—")
+rs2.metric("Top 3 customers", fmt_pct(top3) if top3 is not None else "—")
+rs3.metric("Top 10 customers", fmt_pct(top10) if top10 is not None else "—")
+rs4.metric("China revenue", fmt_pct(china) if china is not None else "—",
+           help="Direct revenue from China (geopolitical / export-control exposure)")
+
+# Row 2 — AI exposure
+ae1, ae2, ae3, ae4 = st.columns(4)
+hs_beta = extras.hyperscaler_capex_beta
+ai_pct = extras.ai_revenue_pct
+ae1.metric(
+    "Hyperscaler capex beta", f"{hs_beta:.1f}x" if hs_beta is not None else "—",
+    help="Revenue beta to combined MSFT+GOOGL+AMZN+META capex. >1.0 = real leverage to the AI cycle.",
+)
+ae2.metric("AI / datacenter revenue", fmt_pct(ai_pct) if ai_pct is not None else "—")
+inst = extras.institutional_ownership_pct
+ae3.metric("Institutional ownership", fmt_pct(inst) if inst is not None else "—")
+ae4.metric("Beta (5y)", f"{extras.beta:.2f}" if extras.beta else "—")
+
+# Row 3 — Positioning signals
+ps1, ps2, ps3, ps4 = st.columns(4)
+insider = extras.insider_net_buying_6m_usd
+if insider is not None:
+    if abs(insider) >= 1e6:
+        insider_str = f"${insider/1e6:+.0f}M"
+    else:
+        insider_str = f"${insider:+,.0f}"
+    insider_label = ":green_heart: Buying" if insider > 1_000_000 else (":red_circle: Selling" if insider < -1_000_000 else ":left_right_arrow: Flat")
+else:
+    insider_str = "—"
+    insider_label = None
+ps1.metric("Insider 6m", insider_str, delta=insider_label)
+
+short = extras.short_interest_pct
+ps2.metric(
+    "Short interest", fmt_pct(short) if short is not None else "—",
+    help="% of float sold short. >10% can flag controversy or squeeze setup.",
+)
+dtc = extras.days_to_cover
+ps3.metric("Days to cover", f"{dtc:.1f}" if dtc is not None else "—")
+
+eps_rev = extras.eps_revisions_3m_pct
+ps4.metric(
+    "EPS revisions (90d)", fmt_pct(eps_rev) if eps_rev is not None else "—",
+    help="% change in consensus next-12m EPS over the last 90 days. The best leading earnings indicator.",
+)
+
+
+# Reader's-guide flags
+flags2 = []
+if top1 is not None and top1 >= 0.40:
+    flags2.append((":red_circle:", f"**Top-customer risk** — single customer is {top1*100:.0f}% of revenue. One contract loss = thesis break."))
+elif top1 is not None and top1 >= 0.25:
+    flags2.append((":warning:", f"**Concentrated customer base** — top customer is {top1*100:.0f}% of revenue."))
+
+if china is not None and china >= 0.25:
+    flags2.append((":red_circle:", f"**Heavy China exposure ({china*100:.0f}%)** — export-control / tariff tail risk is material."))
+elif china is not None and china >= 0.15:
+    flags2.append((":warning:", f"**Meaningful China exposure ({china*100:.0f}%)** — monitor policy."))
+
+if hs_beta is not None and hs_beta >= 1.5:
+    flags2.append((":green_circle:", f"**High hyperscaler leverage ({hs_beta:.1f}x beta)** — direct play on AI capex cycle. Loves it on the way up; gets hit hardest on digestion."))
+elif hs_beta is not None and hs_beta < 0.3:
+    flags2.append((":warning:", f"**Limited AI leverage ({hs_beta:.1f}x beta)** — narrative may overstate this name's AI exposure."))
+
+if insider is not None and insider > 5_000_000:
+    flags2.append((":green_circle:", f"**Insiders net-buying ({fmt_money(insider)})** — they're putting their own money behind the thesis."))
+elif insider is not None and insider < -50_000_000:
+    flags2.append((":red_circle:", f"**Heavy insider selling ({fmt_money(-insider)} in 6m)** — they may be trimming at the top."))
+
+if short is not None and short >= 0.10:
+    flags2.append((":warning:", f"**High short interest ({short*100:.0f}%)** — controversy. Could be a squeeze setup OR a structural short thesis."))
+elif short is not None and short <= 0.012:
+    flags2.append((":warning:", f"**Almost no shorts ({short*100:.1f}%)** — no marginal skeptics left; positioning is one-sided."))
+
+if eps_rev is not None and eps_rev >= 0.10:
+    flags2.append((":green_circle:", f"**EPS revisions {eps_rev*100:+.0f}%** in 90 days — street is raising estimates; momentum signal."))
+elif eps_rev is not None and eps_rev <= -0.05:
+    flags2.append((":red_circle:", f"**EPS revisions {eps_rev*100:+.0f}%** — consensus is cutting; thesis is breaking."))
+
+if flags2:
+    for icon, msg in flags2:
+        st.markdown(f"{icon} {msg}")
+
+st.markdown("---")
+
 # ---------------- ANALYST CONSENSUS + PRICE TARGETS ----------------
 left, right = st.columns([1, 2])
 with left:

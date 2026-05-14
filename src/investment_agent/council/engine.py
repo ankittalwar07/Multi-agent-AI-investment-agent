@@ -54,6 +54,17 @@ def company_to_view(
         "fcf_margin_after_capex": e.get("fcf_margin_after_capex") if isinstance(e, dict) else getattr(e, "fcf_margin_after_capex", None),
         "rd_to_sales": e.get("rd_to_sales") if isinstance(e, dict) else getattr(e, "rd_to_sales", None),
         "total_shareholder_yield": e.get("total_shareholder_yield") if isinstance(e, dict) else getattr(e, "total_shareholder_yield", None),
+        # Risk & sentiment (Pass 2)
+        "top_1_customer_pct": e.get("top_1_customer_pct") if isinstance(e, dict) else getattr(e, "top_1_customer_pct", None),
+        "top_3_customer_pct": e.get("top_3_customer_pct") if isinstance(e, dict) else getattr(e, "top_3_customer_pct", None),
+        "china_revenue_pct": e.get("china_revenue_pct") if isinstance(e, dict) else getattr(e, "china_revenue_pct", None),
+        "hyperscaler_capex_beta": e.get("hyperscaler_capex_beta") if isinstance(e, dict) else getattr(e, "hyperscaler_capex_beta", None),
+        "ai_revenue_pct": e.get("ai_revenue_pct") if isinstance(e, dict) else getattr(e, "ai_revenue_pct", None),
+        "insider_net_buying_6m_usd": e.get("insider_net_buying_6m_usd") if isinstance(e, dict) else getattr(e, "insider_net_buying_6m_usd", None),
+        "short_interest_pct": e.get("short_interest_pct") if isinstance(e, dict) else getattr(e, "short_interest_pct", None),
+        "eps_revisions_3m_pct": e.get("eps_revisions_3m_pct") if isinstance(e, dict) else getattr(e, "eps_revisions_3m_pct", None),
+        "analyst_revisions_up": e.get("analyst_revisions_up") if isinstance(e, dict) else getattr(e, "analyst_revisions_up", None),
+        "analyst_revisions_down": e.get("analyst_revisions_down") if isinstance(e, dict) else getattr(e, "analyst_revisions_down", None),
     }
 
 

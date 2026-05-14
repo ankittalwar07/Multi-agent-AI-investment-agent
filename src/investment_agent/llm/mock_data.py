@@ -1139,6 +1139,323 @@ EARNINGS_POWER: dict[str, dict] = {
 }
 
 
+# ---------- risk & sentiment patch (Pass 2) ----------
+#
+# Per public company:
+#   top_1/3/10_customer_pct  — quantified customer concentration
+#   china_revenue_pct        — explicit China exposure (export-control risk)
+#   hyperscaler_capex_beta   — revenue beta to MSFT+GOOGL+AMZN+META capex
+#   ai_revenue_pct           — % of revenue tied to AI/datacenter end-markets
+#   insider_net_buying_6m_usd — positive = net buying, negative = net selling
+#   short_interest_pct, days_to_cover
+#   eps_revisions_3m_pct     — % change in consensus next-12m EPS over 90 days
+#   analyst_revisions_up/down — count of street estimates raised vs cut
+#   institutional_ownership_pct
+
+RISK_SENTIMENT: dict[str, dict] = {
+    # Materials
+    "Freeport-McMoRan": dict(
+        top_1_customer_pct=0.08, top_3_customer_pct=0.18, top_10_customer_pct=0.45,
+        china_revenue_pct=0.22, hyperscaler_capex_beta=0.30, ai_revenue_pct=0.10,
+        insider_net_buying_6m_usd=8_000_000, short_interest_pct=0.022, days_to_cover=2.1,
+        eps_revisions_3m_pct=0.08, analyst_revisions_up=15, analyst_revisions_down=3,
+        institutional_ownership_pct=0.82,
+    ),
+    "Southern Copper": dict(
+        top_1_customer_pct=0.18, top_3_customer_pct=0.42, top_10_customer_pct=0.72,
+        china_revenue_pct=0.45, hyperscaler_capex_beta=0.25, ai_revenue_pct=0.08,
+        insider_net_buying_6m_usd=-2_000_000, short_interest_pct=0.018, days_to_cover=2.5,
+        eps_revisions_3m_pct=0.04, analyst_revisions_up=6, analyst_revisions_down=4,
+        institutional_ownership_pct=0.18,
+    ),
+    "BHP Group": dict(
+        top_1_customer_pct=0.10, top_3_customer_pct=0.28, top_10_customer_pct=0.55,
+        china_revenue_pct=0.62, hyperscaler_capex_beta=0.15, ai_revenue_pct=0.05,
+        insider_net_buying_6m_usd=0, short_interest_pct=0.015, days_to_cover=1.5,
+        eps_revisions_3m_pct=0.02, analyst_revisions_up=12, analyst_revisions_down=5,
+        institutional_ownership_pct=0.68,
+    ),
+    "MP Materials": dict(
+        top_1_customer_pct=0.42, top_3_customer_pct=0.78, top_10_customer_pct=0.95,
+        china_revenue_pct=0.25, hyperscaler_capex_beta=0.40, ai_revenue_pct=0.25,
+        insider_net_buying_6m_usd=18_000_000, short_interest_pct=0.135, days_to_cover=7.8,
+        eps_revisions_3m_pct=0.18, analyst_revisions_up=7, analyst_revisions_down=2,
+        institutional_ownership_pct=0.72,
+    ),
+    "Lynas Rare Earths": dict(
+        top_1_customer_pct=0.35, top_3_customer_pct=0.70, top_10_customer_pct=0.92,
+        china_revenue_pct=0.05, hyperscaler_capex_beta=0.30,
+        insider_net_buying_6m_usd=3_000_000, short_interest_pct=0.085, days_to_cover=4.5,
+        eps_revisions_3m_pct=0.06, analyst_revisions_up=5, analyst_revisions_down=3,
+        institutional_ownership_pct=0.55,
+    ),
+    # Gases
+    "Linde": dict(
+        top_1_customer_pct=0.04, top_3_customer_pct=0.10, top_10_customer_pct=0.18,
+        china_revenue_pct=0.08, hyperscaler_capex_beta=0.35, ai_revenue_pct=0.15,
+        insider_net_buying_6m_usd=-1_500_000, short_interest_pct=0.008, days_to_cover=1.2,
+        eps_revisions_3m_pct=0.05, analyst_revisions_up=18, analyst_revisions_down=2,
+        institutional_ownership_pct=0.88,
+    ),
+    "Air Products": dict(
+        top_1_customer_pct=0.06, top_3_customer_pct=0.14, top_10_customer_pct=0.25,
+        china_revenue_pct=0.12, hyperscaler_capex_beta=0.30, ai_revenue_pct=0.18,
+        insider_net_buying_6m_usd=0, short_interest_pct=0.018, days_to_cover=2.0,
+        eps_revisions_3m_pct=-0.04, analyst_revisions_up=4, analyst_revisions_down=10,
+        institutional_ownership_pct=0.86,
+    ),
+    "Air Liquide": dict(
+        top_1_customer_pct=0.04, top_3_customer_pct=0.12, top_10_customer_pct=0.20,
+        china_revenue_pct=0.18, hyperscaler_capex_beta=0.20, ai_revenue_pct=0.12,
+        insider_net_buying_6m_usd=0, short_interest_pct=0.005, days_to_cover=1.0,
+        eps_revisions_3m_pct=0.03, analyst_revisions_up=14, analyst_revisions_down=5,
+        institutional_ownership_pct=0.75,
+    ),
+    # Specialty chemicals
+    "Shin-Etsu Chemical": dict(
+        top_1_customer_pct=0.18, top_3_customer_pct=0.45, top_10_customer_pct=0.75,
+        china_revenue_pct=0.22, hyperscaler_capex_beta=0.65, ai_revenue_pct=0.42,
+        insider_net_buying_6m_usd=0, short_interest_pct=0.012, days_to_cover=1.5,
+        eps_revisions_3m_pct=0.09, analyst_revisions_up=14, analyst_revisions_down=2,
+        institutional_ownership_pct=0.60,
+    ),
+    "JSR Corporation": dict(
+        top_1_customer_pct=0.25, top_3_customer_pct=0.55, top_10_customer_pct=0.82,
+        china_revenue_pct=0.20, hyperscaler_capex_beta=0.50, ai_revenue_pct=0.35,
+        insider_net_buying_6m_usd=0, short_interest_pct=0.025, days_to_cover=3.0,
+        eps_revisions_3m_pct=0.06, analyst_revisions_up=8, analyst_revisions_down=3,
+        institutional_ownership_pct=0.65,
+    ),
+    "Entegris": dict(
+        top_1_customer_pct=0.12, top_3_customer_pct=0.32, top_10_customer_pct=0.55,
+        china_revenue_pct=0.18, hyperscaler_capex_beta=0.55, ai_revenue_pct=0.30,
+        insider_net_buying_6m_usd=-3_500_000, short_interest_pct=0.04, days_to_cover=3.5,
+        eps_revisions_3m_pct=0.07, analyst_revisions_up=12, analyst_revisions_down=3,
+        institutional_ownership_pct=0.92,
+    ),
+    # Substrates
+    "Ibiden": dict(
+        top_1_customer_pct=0.35, top_3_customer_pct=0.62, top_10_customer_pct=0.85,
+        china_revenue_pct=0.08, hyperscaler_capex_beta=1.30, ai_revenue_pct=0.55,
+        insider_net_buying_6m_usd=0, short_interest_pct=0.018, days_to_cover=2.0,
+        eps_revisions_3m_pct=0.15, analyst_revisions_up=12, analyst_revisions_down=2,
+        institutional_ownership_pct=0.45,
+    ),
+    "Unimicron": dict(
+        top_1_customer_pct=0.18, top_3_customer_pct=0.45, top_10_customer_pct=0.72,
+        china_revenue_pct=0.15, hyperscaler_capex_beta=1.10, ai_revenue_pct=0.45,
+        insider_net_buying_6m_usd=0, short_interest_pct=0.022, days_to_cover=2.5,
+        eps_revisions_3m_pct=0.08, analyst_revisions_up=8, analyst_revisions_down=3,
+        institutional_ownership_pct=0.42,
+    ),
+    "Shinko Electric": dict(
+        top_1_customer_pct=0.22, top_3_customer_pct=0.50, top_10_customer_pct=0.78,
+        china_revenue_pct=0.10, hyperscaler_capex_beta=0.95, ai_revenue_pct=0.40,
+        insider_net_buying_6m_usd=0, short_interest_pct=0.020, days_to_cover=2.0,
+        eps_revisions_3m_pct=0.04, analyst_revisions_up=6, analyst_revisions_down=2,
+        institutional_ownership_pct=0.55,
+    ),
+    # Water
+    "Xylem": dict(
+        top_1_customer_pct=0.04, top_3_customer_pct=0.10, top_10_customer_pct=0.20,
+        china_revenue_pct=0.06, hyperscaler_capex_beta=0.35, ai_revenue_pct=0.18,
+        insider_net_buying_6m_usd=2_000_000, short_interest_pct=0.020, days_to_cover=2.5,
+        eps_revisions_3m_pct=0.04, analyst_revisions_up=10, analyst_revisions_down=4,
+        institutional_ownership_pct=0.95,
+    ),
+    "Pentair": dict(
+        top_1_customer_pct=0.06, top_3_customer_pct=0.14, top_10_customer_pct=0.25,
+        china_revenue_pct=0.04, hyperscaler_capex_beta=0.20, ai_revenue_pct=0.08,
+        insider_net_buying_6m_usd=0, short_interest_pct=0.025, days_to_cover=2.8,
+        eps_revisions_3m_pct=0.02, analyst_revisions_up=6, analyst_revisions_down=4,
+        institutional_ownership_pct=0.91,
+    ),
+    # Semi capex
+    "ASML Holding": dict(
+        top_1_customer_pct=0.45, top_3_customer_pct=0.85, top_10_customer_pct=0.95,
+        china_revenue_pct=0.18, hyperscaler_capex_beta=0.70, ai_revenue_pct=0.55,
+        insider_net_buying_6m_usd=-2_500_000, short_interest_pct=0.007, days_to_cover=0.9,
+        eps_revisions_3m_pct=0.12, analyst_revisions_up=22, analyst_revisions_down=3,
+        institutional_ownership_pct=0.78,
+    ),
+    "TSMC": dict(
+        top_1_customer_pct=0.25, top_3_customer_pct=0.42, top_10_customer_pct=0.65,
+        china_revenue_pct=0.12, hyperscaler_capex_beta=0.60, ai_revenue_pct=0.42,
+        insider_net_buying_6m_usd=0, short_interest_pct=0.010, days_to_cover=1.2,
+        eps_revisions_3m_pct=0.14, analyst_revisions_up=32, analyst_revisions_down=4,
+        institutional_ownership_pct=0.80,
+    ),
+    "Samsung Foundry": dict(
+        top_1_customer_pct=0.20, top_3_customer_pct=0.45, top_10_customer_pct=0.68,
+        china_revenue_pct=0.25, hyperscaler_capex_beta=0.55, ai_revenue_pct=0.35,
+        insider_net_buying_6m_usd=0, short_interest_pct=0.014, days_to_cover=1.5,
+        eps_revisions_3m_pct=0.10, analyst_revisions_up=14, analyst_revisions_down=4,
+        institutional_ownership_pct=0.55,
+    ),
+    "Intel Foundry": dict(
+        top_1_customer_pct=0.08, top_3_customer_pct=0.20, top_10_customer_pct=0.40,
+        china_revenue_pct=0.18, hyperscaler_capex_beta=0.40, ai_revenue_pct=0.20,
+        insider_net_buying_6m_usd=4_000_000, short_interest_pct=0.035, days_to_cover=3.2,
+        eps_revisions_3m_pct=-0.12, analyst_revisions_up=3, analyst_revisions_down=22,
+        institutional_ownership_pct=0.65,
+    ),
+    "TSMC (CoWoS)": dict(  # parent flag
+        hyperscaler_capex_beta=0.60, ai_revenue_pct=0.42,
+    ),
+    "Amkor Technology": dict(
+        top_1_customer_pct=0.15, top_3_customer_pct=0.40, top_10_customer_pct=0.65,
+        china_revenue_pct=0.20, hyperscaler_capex_beta=0.75, ai_revenue_pct=0.30,
+        insider_net_buying_6m_usd=1_000_000, short_interest_pct=0.035, days_to_cover=3.5,
+        eps_revisions_3m_pct=0.06, analyst_revisions_up=8, analyst_revisions_down=2,
+        institutional_ownership_pct=0.82,
+    ),
+    # Silicon
+    "NVIDIA": dict(
+        top_1_customer_pct=0.19, top_3_customer_pct=0.42, top_10_customer_pct=0.68,
+        china_revenue_pct=0.13, hyperscaler_capex_beta=2.00, ai_revenue_pct=0.88,
+        insider_net_buying_6m_usd=-180_000_000,  # heavy CEO/officer selling
+        short_interest_pct=0.015, days_to_cover=1.0,
+        eps_revisions_3m_pct=0.18, analyst_revisions_up=48, analyst_revisions_down=4,
+        institutional_ownership_pct=0.68,
+    ),
+    "AMD": dict(
+        top_1_customer_pct=0.15, top_3_customer_pct=0.38, top_10_customer_pct=0.60,
+        china_revenue_pct=0.15, hyperscaler_capex_beta=1.50, ai_revenue_pct=0.55,
+        insider_net_buying_6m_usd=-12_000_000, short_interest_pct=0.025, days_to_cover=1.5,
+        eps_revisions_3m_pct=0.12, analyst_revisions_up=28, analyst_revisions_down=4,
+        institutional_ownership_pct=0.70,
+    ),
+    "Google TPU": dict(
+        top_1_customer_pct=0.0,  # captive (internal)
+        china_revenue_pct=0.0, hyperscaler_capex_beta=1.0, ai_revenue_pct=0.18,
+        insider_net_buying_6m_usd=-50_000_000, short_interest_pct=0.008, days_to_cover=0.7,
+        eps_revisions_3m_pct=0.08, analyst_revisions_up=38, analyst_revisions_down=4,
+        institutional_ownership_pct=0.78,
+    ),
+    # Memory
+    "SK Hynix": dict(
+        top_1_customer_pct=0.32, top_3_customer_pct=0.55, top_10_customer_pct=0.75,
+        china_revenue_pct=0.18, hyperscaler_capex_beta=1.60, ai_revenue_pct=0.50,
+        insider_net_buying_6m_usd=0, short_interest_pct=0.022, days_to_cover=2.0,
+        eps_revisions_3m_pct=0.22, analyst_revisions_up=30, analyst_revisions_down=2,
+        institutional_ownership_pct=0.50,
+    ),
+    "Micron": dict(
+        top_1_customer_pct=0.16, top_3_customer_pct=0.42, top_10_customer_pct=0.65,
+        china_revenue_pct=0.10, hyperscaler_capex_beta=1.40, ai_revenue_pct=0.40,
+        insider_net_buying_6m_usd=-8_000_000, short_interest_pct=0.045, days_to_cover=2.8,
+        eps_revisions_3m_pct=0.18, analyst_revisions_up=26, analyst_revisions_down=4,
+        institutional_ownership_pct=0.88,
+    ),
+    # Networking
+    "Broadcom": dict(
+        top_1_customer_pct=0.20, top_3_customer_pct=0.45, top_10_customer_pct=0.62,
+        china_revenue_pct=0.20, hyperscaler_capex_beta=1.20, ai_revenue_pct=0.42,
+        insider_net_buying_6m_usd=-25_000_000, short_interest_pct=0.012, days_to_cover=1.0,
+        eps_revisions_3m_pct=0.14, analyst_revisions_up=32, analyst_revisions_down=3,
+        institutional_ownership_pct=0.86,
+    ),
+    "Marvell": dict(
+        top_1_customer_pct=0.30, top_3_customer_pct=0.55, top_10_customer_pct=0.78,
+        china_revenue_pct=0.16, hyperscaler_capex_beta=1.40, ai_revenue_pct=0.50,
+        insider_net_buying_6m_usd=-4_000_000, short_interest_pct=0.038, days_to_cover=2.5,
+        eps_revisions_3m_pct=0.16, analyst_revisions_up=22, analyst_revisions_down=4,
+        institutional_ownership_pct=0.88,
+    ),
+    "Coherent": dict(
+        top_1_customer_pct=0.16, top_3_customer_pct=0.38, top_10_customer_pct=0.62,
+        china_revenue_pct=0.22, hyperscaler_capex_beta=1.20, ai_revenue_pct=0.40,
+        insider_net_buying_6m_usd=500_000, short_interest_pct=0.075, days_to_cover=5.5,
+        eps_revisions_3m_pct=0.18, analyst_revisions_up=15, analyst_revisions_down=2,
+        institutional_ownership_pct=0.88,
+    ),
+    "Lumentum": dict(
+        top_1_customer_pct=0.22, top_3_customer_pct=0.48, top_10_customer_pct=0.70,
+        china_revenue_pct=0.18, hyperscaler_capex_beta=1.05, ai_revenue_pct=0.35,
+        insider_net_buying_6m_usd=0, short_interest_pct=0.082, days_to_cover=5.8,
+        eps_revisions_3m_pct=0.12, analyst_revisions_up=10, analyst_revisions_down=3,
+        institutional_ownership_pct=0.92,
+    ),
+    # Power & cooling
+    "Vertiv Holdings": dict(
+        top_1_customer_pct=0.12, top_3_customer_pct=0.35, top_10_customer_pct=0.55,
+        china_revenue_pct=0.10, hyperscaler_capex_beta=1.50, ai_revenue_pct=0.55,
+        insider_net_buying_6m_usd=2_000_000, short_interest_pct=0.045, days_to_cover=3.0,
+        eps_revisions_3m_pct=0.22, analyst_revisions_up=22, analyst_revisions_down=2,
+        institutional_ownership_pct=0.92,
+    ),
+    "Schneider Electric": dict(
+        top_1_customer_pct=0.05, top_3_customer_pct=0.14, top_10_customer_pct=0.25,
+        china_revenue_pct=0.13, hyperscaler_capex_beta=0.40, ai_revenue_pct=0.20,
+        insider_net_buying_6m_usd=0, short_interest_pct=0.008, days_to_cover=1.0,
+        eps_revisions_3m_pct=0.06, analyst_revisions_up=24, analyst_revisions_down=4,
+        institutional_ownership_pct=0.70,
+    ),
+    "Eaton": dict(
+        top_1_customer_pct=0.06, top_3_customer_pct=0.15, top_10_customer_pct=0.28,
+        china_revenue_pct=0.07, hyperscaler_capex_beta=0.60, ai_revenue_pct=0.28,
+        insider_net_buying_6m_usd=-1_000_000, short_interest_pct=0.015, days_to_cover=2.0,
+        eps_revisions_3m_pct=0.07, analyst_revisions_up=22, analyst_revisions_down=3,
+        institutional_ownership_pct=0.88,
+    ),
+    # Hyperscalers (themselves) — beta to their own capex is non-meaningful; skip beta
+    "Microsoft": dict(
+        top_1_customer_pct=0.04, top_3_customer_pct=0.10, top_10_customer_pct=0.18,
+        china_revenue_pct=0.02, hyperscaler_capex_beta=0.30, ai_revenue_pct=0.25,
+        insider_net_buying_6m_usd=-30_000_000, short_interest_pct=0.006, days_to_cover=0.6,
+        eps_revisions_3m_pct=0.06, analyst_revisions_up=50, analyst_revisions_down=3,
+        institutional_ownership_pct=0.72,
+    ),
+    "Amazon": dict(
+        top_1_customer_pct=0.0,  # diversified
+        china_revenue_pct=0.0, hyperscaler_capex_beta=0.30, ai_revenue_pct=0.10,
+        insider_net_buying_6m_usd=-40_000_000, short_interest_pct=0.008, days_to_cover=0.7,
+        eps_revisions_3m_pct=0.10, analyst_revisions_up=52, analyst_revisions_down=2,
+        institutional_ownership_pct=0.62,
+    ),
+    "Alphabet": dict(
+        top_1_customer_pct=0.0, china_revenue_pct=0.03,
+        hyperscaler_capex_beta=0.30, ai_revenue_pct=0.18,
+        insider_net_buying_6m_usd=-50_000_000, short_interest_pct=0.008, days_to_cover=0.7,
+        eps_revisions_3m_pct=0.08, analyst_revisions_up=40, analyst_revisions_down=4,
+        institutional_ownership_pct=0.78,
+    ),
+    # Neoclouds
+    "CoreWeave": dict(
+        top_1_customer_pct=0.60,  # the Microsoft concentration
+        top_3_customer_pct=0.80, top_10_customer_pct=0.92,
+        china_revenue_pct=0.0, hyperscaler_capex_beta=3.00, ai_revenue_pct=1.00,
+        insider_net_buying_6m_usd=-100_000_000,  # post-IPO insider selling
+        short_interest_pct=0.15, days_to_cover=4.0,
+        eps_revisions_3m_pct=-0.08, analyst_revisions_up=6, analyst_revisions_down=12,
+        institutional_ownership_pct=0.55,
+    ),
+    # Models
+    "Meta Platforms": dict(
+        top_1_customer_pct=0.0, china_revenue_pct=0.0,
+        hyperscaler_capex_beta=0.40, ai_revenue_pct=0.15,
+        insider_net_buying_6m_usd=-80_000_000, short_interest_pct=0.010, days_to_cover=0.8,
+        eps_revisions_3m_pct=0.12, analyst_revisions_up=48, analyst_revisions_down=4,
+        institutional_ownership_pct=0.78,
+    ),
+    # Edge
+    "Qualcomm": dict(
+        top_1_customer_pct=0.20, top_3_customer_pct=0.42, top_10_customer_pct=0.65,
+        china_revenue_pct=0.46, hyperscaler_capex_beta=0.10, ai_revenue_pct=0.18,
+        insider_net_buying_6m_usd=-3_000_000, short_interest_pct=0.018, days_to_cover=2.0,
+        eps_revisions_3m_pct=0.05, analyst_revisions_up=18, analyst_revisions_down=6,
+        institutional_ownership_pct=0.78,
+    ),
+    "Apple": dict(
+        top_1_customer_pct=0.0,  # B2C
+        china_revenue_pct=0.19, hyperscaler_capex_beta=-0.10, ai_revenue_pct=0.05,
+        insider_net_buying_6m_usd=-60_000_000, short_interest_pct=0.006, days_to_cover=0.5,
+        eps_revisions_3m_pct=0.02, analyst_revisions_up=20, analyst_revisions_down=18,
+        institutional_ownership_pct=0.62,
+    ),
+}
+
+
 # ---------- public helpers ----------
 
 def evidence_for(company_name: str, component: str) -> list[dict]:
@@ -1179,15 +1496,13 @@ def findings_for_component(component_name: str) -> list[dict]:
     for c in base:
         c2 = dict(c)
         c2.setdefault("evidence", evidence_for(c["name"], component_name))
-        # Merge in the earnings-power patch if we have hand-crafted data for this name.
-        patch = EARNINGS_POWER.get(c["name"])
-        if patch:
-            extras = dict(c2.get("extras") or {})
-            for k, v in patch.items():
-                if v is not None and k not in extras:
-                    extras[k] = v
-                elif v is not None:
-                    extras[k] = v
-            c2["extras"] = extras
+        # Merge in earnings-power + risk/sentiment patches if we have data for this name.
+        extras = dict(c2.get("extras") or {})
+        for patch in (EARNINGS_POWER.get(c["name"]), RISK_SENTIMENT.get(c["name"])):
+            if patch:
+                for k, v in patch.items():
+                    if v is not None:
+                        extras[k] = v
+        c2["extras"] = extras
         enriched.append(c2)
     return enriched
