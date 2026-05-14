@@ -50,48 +50,94 @@ def _structure(c): return (c.get("structure") or "").lower()
 def _supply(c): return (c.get("supply_status") or "").lower()
 def _demand(c): return (c.get("demand_signal") or "").lower()
 def _exp_ret(c): return c.get("expected_return_12m") or 0
+def _roic(c): return c.get("roic")
+def _wacc(c): return c.get("wacc")
+def _net_debt(c): return c.get("net_debt_usd")
+def _debt_ebitda(c): return c.get("debt_to_ebitda")
+def _capex_int(c): return c.get("capex_to_sales")
+def _fcf_after_capex(c): return c.get("fcf_margin_after_capex")
+def _rd_intensity(c): return c.get("rd_to_sales")
+def _shareholder_yield(c): return c.get("total_shareholder_yield")
 
 
 # ---------------- Warren Buffett ----------------
 
 def buffett(c: CompanyView) -> dict:
-    """Wonderful business + fair price + understandable."""
+    """Wonderful business + fair price + understandable.
+
+    Anchors on ROIC (the real economic moat in basis points) and net cash /
+    leverage. Moat composite is a secondary corroborator.
+    """
     reasoning: list[str] = []
     moat = _moat(c)
     pe_f = _pe_f(c)
     op = _op_mgn(c)
+    roic = _roic(c)
+    wacc = _wacc(c) or 0.09
+    net_debt = _net_debt(c)
+    debt_eb = _debt_ebitda(c)
 
-    # Hard pass: not understandable / no earnings (private without comps)
     if not _is_public(c) and not _ticker(c):
         return _v("PASS", "MEDIUM",
                   ["Private and unlisted — outside my circle of competence for direct investment."],
-                  None,
-                  "No public access; cannot underwrite.")
+                  None, "No public access; cannot underwrite.")
 
-    # Negative earnings: skip
     if pe_f is None or pe_f <= 0:
         return _v("AVOID", "HIGH",
                   ["No clear path to positive forward earnings — not investable for me."],
                   None, "Negative/missing forward earnings.")
 
-    # Score the quality + price
     quality_score = 0
-    if moat >= 70: quality_score += 2; reasoning.append(f"Outstanding moat (composite {moat:.0f}/100) — wide and durable.")
-    elif moat >= 50: quality_score += 1; reasoning.append(f"Solid moat (composite {moat:.0f}/100).")
-    else: reasoning.append(f"Moat is thin (composite {moat:.0f}/100) — I'd want more.")
 
-    if op is not None and op >= 0.25: quality_score += 1; reasoning.append(f"Excellent operating margin ({op*100:.0f}%) — pricing power.")
-    elif op is not None and op >= 0.15: reasoning.append(f"Adequate margin ({op*100:.0f}%).")
+    # ROIC is the heart of the analysis
+    if roic is not None:
+        spread = roic - wacc
+        if roic >= 0.30:
+            quality_score += 3
+            reasoning.append(f"Exceptional ROIC of {roic*100:.0f}% — the business prints money on every dollar reinvested.")
+        elif roic >= 0.20:
+            quality_score += 2
+            reasoning.append(f"Strong ROIC of {roic*100:.0f}% — clear economic moat ({spread*100:+.0f}pp over WACC).")
+        elif roic >= 0.12:
+            quality_score += 1
+            reasoning.append(f"ROIC ({roic*100:.0f}%) above cost of capital but not exceptional.")
+        elif roic >= wacc:
+            reasoning.append(f"ROIC ({roic*100:.0f}%) only modestly above WACC ({wacc*100:.0f}%).")
+        else:
+            quality_score -= 1
+            reasoning.append(f"ROIC ({roic*100:.0f}%) below WACC ({wacc*100:.0f}%) — destroying value.")
+    elif moat >= 70:
+        quality_score += 2
+        reasoning.append(f"ROIC unavailable; moat composite ({moat:.0f}/100) suggests strong economics.")
 
+    # Balance sheet — Buffett insists on financial strength
+    if net_debt is not None:
+        if net_debt < -5_000_000_000:
+            quality_score += 1
+            reasoning.append("Net cash position — fortress balance sheet.")
+        elif debt_eb is not None and debt_eb > 3.5:
+            quality_score -= 1
+            reasoning.append(f"Leverage ({debt_eb:.1f}x EBITDA) is uncomfortable in a downturn.")
+
+    if op is not None and op >= 0.25:
+        quality_score += 1
+        reasoning.append(f"Operating margin {op*100:.0f}% confirms pricing power.")
+
+    # Valuation
     price_score = 0
-    if pe_f <= 18: price_score += 2; reasoning.append(f"Reasonable forward P/E of {pe_f:.1f}x.")
-    elif pe_f <= 25: price_score += 1; reasoning.append(f"P/E forward {pe_f:.1f}x — fair, not cheap.")
-    else: reasoning.append(f"Forward P/E {pe_f:.1f}x is rich for my taste.")
+    if pe_f <= 18:
+        price_score += 2
+        reasoning.append(f"Reasonable forward P/E of {pe_f:.1f}x.")
+    elif pe_f <= 25:
+        price_score += 1
+        reasoning.append(f"P/E forward {pe_f:.1f}x — fair, not cheap.")
+    else:
+        reasoning.append(f"Forward P/E {pe_f:.1f}x is rich for my taste.")
 
     total = quality_score + price_score
-    if quality_score >= 3 and price_score >= 1:
+    if quality_score >= 4 and price_score >= 1:
         verdict, conv = "STRONG_BUY", "HIGH"
-    elif total >= 3:
+    elif total >= 4:
         verdict, conv = "BUY", "HIGH"
     elif total >= 2:
         verdict, conv = "BUY", "MEDIUM"
@@ -101,24 +147,47 @@ def buffett(c: CompanyView) -> dict:
         verdict, conv = "PASS", "MEDIUM"
 
     return _v(verdict, conv, reasoning,
-              pos=f"Moat composite {moat:.0f}/100",
-              concern="Valuation rich" if pe_f and pe_f > 25 else "Watch capital allocation")
+              pos=(f"ROIC {roic*100:.0f}%" if roic else f"Moat composite {moat:.0f}/100"),
+              concern=("Valuation rich" if pe_f and pe_f > 25
+                       else ("Leverage" if debt_eb and debt_eb > 3 else "Watch capital allocation")))
 
 
 # ---------------- Charlie Munger ----------------
 
 def munger(c: CompanyView) -> dict:
-    """Pristine quality — would rather pay up for a great business than discount a mediocre one."""
+    """Pristine quality — anchored on ROIC and the ROIC-WACC spread.
+
+    Munger's whole framework is that great businesses earn high returns on
+    capital and you should pay up for them. The ROIC vs WACC spread IS the
+    'truly excellent business' test.
+    """
     reasoning: list[str] = []
     moat = _moat(c)
     op = _op_mgn(c)
     pe_f = _pe_f(c)
+    roic = _roic(c)
+    wacc = _wacc(c) or 0.09
+    roic_trend = c.get("roic_trend")
 
-    if moat < 50:
+    # Primary gate: ROIC. Without quality returns on capital it's a cigar butt.
+    if roic is not None:
+        spread = roic - wacc
+        if roic < 0:
+            return _v("AVOID", "HIGH",
+                      [f"ROIC negative ({roic*100:.0f}%) — burning capital. I won't go there."],
+                      None, "Destroying value.")
+        if roic < wacc:
+            return _v("AVOID", "HIGH",
+                      [f"ROIC {roic*100:.0f}% below WACC {wacc*100:.0f}% — destroys value with every reinvested dollar."],
+                      None, "Below cost of capital.")
+        if spread < 0.05:
+            return _v("HOLD", "MEDIUM",
+                      [f"ROIC-WACC spread is only {spread*100:+.0f}pp — economics are mediocre, not great."],
+                      None, "Returns just barely above cost of capital.")
+    elif moat < 50:
         return _v("AVOID", "HIGH",
-                  [f"Moat composite {moat:.0f}/100 is mediocre — life is too short for cigar butts."],
-                  None,
-                  "Quality too low; I avoid the swamp.")
+                  [f"No ROIC data and moat composite {moat:.0f}/100 is mediocre — life is too short for cigar butts."],
+                  None, "Quality too low; I avoid the swamp.")
 
     if op is None or op < 0.15:
         return _v("HOLD", "MEDIUM",
@@ -126,29 +195,57 @@ def munger(c: CompanyView) -> dict:
                   None, "Margins suggest commodity-like economics.")
 
     score = 0
-    if moat >= 75: score += 2; reasoning.append("Truly excellent business — durable, capital-light advantages.")
-    elif moat >= 60: score += 1; reasoning.append(f"Strong business (moat {moat:.0f}).")
-    if op >= 0.30: score += 1; reasoning.append(f"Outstanding margins ({op*100:.0f}%) — clear pricing power.")
-    if pe_f and pe_f <= 30: score += 1; reasoning.append("Valuation is reasonable for the quality.")
+    if roic is not None and roic >= 0.30:
+        score += 3
+        reasoning.append(f"ROIC {roic*100:.0f}% — truly outstanding. Earns extraordinary returns on every reinvested dollar.")
+    elif roic is not None and roic >= 0.20:
+        score += 2
+        reasoning.append(f"ROIC {roic*100:.0f}% — strong economic moat, well above cost of capital.")
+    elif roic is not None and roic >= 0.12:
+        score += 1
+        reasoning.append(f"ROIC {roic*100:.0f}% — solid but not exceptional.")
+    elif moat >= 75:
+        score += 2
+        reasoning.append("Truly excellent business — durable, capital-light advantages.")
+    elif moat >= 60:
+        score += 1
+        reasoning.append(f"Strong business (moat {moat:.0f}).")
 
-    # Munger pays up for quality but won't pay anything
+    if roic_trend == "improving":
+        score += 1
+        reasoning.append("ROIC trend improving — capital is being deployed wisely.")
+    elif roic_trend == "declining":
+        score -= 1
+        reasoning.append("ROIC trend declining — incremental capital earning less. Be wary.")
+
+    if op >= 0.30:
+        score += 1
+        reasoning.append(f"Outstanding margins ({op*100:.0f}%) — clear pricing power.")
+
+    if pe_f and pe_f <= 30:
+        score += 1
+        reasoning.append("Valuation is reasonable for the quality.")
+
     if pe_f and pe_f > 45:
         return _v("HOLD", "MEDIUM",
                   reasoning + [f"At {pe_f:.0f}x forward earnings even great businesses become poor investments."],
                   pos="Quality is real",
                   concern=f"Forward P/E {pe_f:.0f}x leaves no margin for error.")
 
-    if score >= 3:
+    if score >= 4:
         verdict, conv = "STRONG_BUY", "HIGH"
-    elif score >= 2:
+    elif score >= 3:
         verdict, conv = "BUY", "HIGH"
-    elif score >= 1:
+    elif score >= 2:
         verdict, conv = "BUY", "MEDIUM"
+    elif score >= 1:
+        verdict, conv = "HOLD", "MEDIUM"
     else:
         verdict, conv = "HOLD", "LOW"
 
     return _v(verdict, conv, reasoning,
-              pos=f"Quality compounds ({moat:.0f}/100)",
+              pos=(f"ROIC {roic*100:.0f}% ({roic_trend or 'stable'})" if roic
+                   else f"Quality compounds ({moat:.0f}/100)"),
               concern="Inverted thinking: what could break this moat?")
 
 

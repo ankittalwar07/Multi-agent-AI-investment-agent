@@ -134,6 +134,10 @@ DF_COLUMNS = [
     "bull_target", "base_target", "bear_target", "thesis_summary",
     "council_consensus", "council_score_pct", "council_buy_count",
     "council_strong_buy_count", "council_high_conv_buy",
+    "roic", "roic_5y_avg", "roic_trend", "wacc",
+    "net_debt_usd", "debt_to_ebitda", "interest_coverage", "current_ratio",
+    "capex_to_sales", "capex_guidance_trend", "fcf_margin_after_capex",
+    "rd_to_sales", "rd_trend", "buyback_yield", "total_shareholder_yield",
 ]
 
 
@@ -187,6 +191,17 @@ def view_to_dataframe(view: RunView) -> pd.DataFrame:
                 "council_buy_count": (e.council_summary or {}).get("buy_count"),
                 "council_strong_buy_count": (e.council_summary or {}).get("strong_buy_count"),
                 "council_high_conv_buy": (e.council_summary or {}).get("high_conviction_buy_count"),
+                # Earnings power (Pass 1)
+                "roic": e.roic, "roic_5y_avg": e.roic_5y_avg,
+                "roic_trend": e.roic_trend, "wacc": e.wacc,
+                "net_debt_usd": e.net_debt_usd, "debt_to_ebitda": e.debt_to_ebitda,
+                "interest_coverage": e.interest_coverage, "current_ratio": e.current_ratio,
+                "capex_to_sales": e.capex_to_sales,
+                "capex_guidance_trend": e.capex_guidance_trend,
+                "fcf_margin_after_capex": e.fcf_margin_after_capex,
+                "rd_to_sales": e.rd_to_sales, "rd_trend": e.rd_trend,
+                "buyback_yield": e.buyback_yield,
+                "total_shareholder_yield": e.total_shareholder_yield,
             }
         )
     if rows:

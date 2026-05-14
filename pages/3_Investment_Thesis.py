@@ -119,6 +119,92 @@ q5.metric("Composite moat", f"{co_obj.score.composite:.0f}/100" if co_obj.score 
 
 st.markdown("---")
 
+# ---------------- EARNINGS POWER & BALANCE SHEET (Pass 1) ----------------
+st.markdown("### :anatomical_heart: Earnings power & balance sheet")
+st.caption(
+    "The economic engine — what every Buffett/Munger underwriting actually anchors on. "
+    "ROIC vs WACC is the real moat in basis points; the rest tells you whether "
+    "this is a wonderful business or one that's eating its capital."
+)
+
+# Row 1 — Return on capital
+ep1, ep2, ep3, ep4, ep5 = st.columns(5)
+roic = extras.roic
+wacc = extras.wacc
+if roic is not None:
+    spread = roic - (wacc or 0)
+    spread_str = f"{spread*100:+.0f}pp vs WACC"
+    ep1.metric("ROIC", f"{roic*100:.0f}%", delta=spread_str if wacc else None)
+else:
+    ep1.metric("ROIC", "—")
+ep2.metric("ROIC 5y avg", fmt_pct(extras.roic_5y_avg))
+trend = extras.roic_trend
+trend_icon = ":arrow_up_small:" if trend == "improving" else (":arrow_down_small:" if trend == "declining" else ":left_right_arrow:")
+ep3.metric("ROIC trend", (trend.title() if trend else "—"), help="Direction of ROIC over the last 5 years")
+ep4.metric("WACC", fmt_pct(extras.wacc))
+shy = extras.total_shareholder_yield
+ep5.metric("Total SH yield", fmt_pct(shy), help="Dividend yield + buyback yield combined")
+
+# Row 2 — Balance sheet
+bs1, bs2, bs3, bs4 = st.columns(4)
+nd = extras.net_debt_usd
+if nd is not None:
+    nd_str = fmt_money(abs(nd))
+    if nd < 0:
+        bs1.metric("Net cash", nd_str, delta="Fortress")
+    else:
+        bs1.metric("Net debt", nd_str)
+else:
+    bs1.metric("Net debt", "—")
+bs2.metric("Debt / EBITDA", fmt_ratio(extras.debt_to_ebitda, 1) if extras.debt_to_ebitda is not None else "—")
+bs3.metric("Interest coverage", fmt_ratio(extras.interest_coverage, 0) if extras.interest_coverage else "—")
+bs4.metric("Current ratio", fmt_ratio(extras.current_ratio, 1) if extras.current_ratio else "—")
+
+# Row 3 — Capital intensity
+ci1, ci2, ci3, ci4 = st.columns(4)
+ci1.metric("Capex / Sales", fmt_pct(extras.capex_to_sales))
+ci2.metric("Capex trend", (extras.capex_guidance_trend.title() if extras.capex_guidance_trend else "—"),
+            help="Management's guidance trajectory")
+ci3.metric("FCF after capex", fmt_pct(extras.fcf_margin_after_capex),
+            help="The real cash margin: ops cash flow minus capex, divided by revenue")
+ci4.metric("R&D / Sales", fmt_pct(extras.rd_to_sales),
+            help="How much of sales goes into widening the moat")
+
+
+# Mini call-outs — a quick reader's-guide to the numbers
+flags = []
+if roic is not None and wacc is not None:
+    if roic >= 0.30:
+        flags.append((":green_circle:", f"**Exceptional ROIC ({roic*100:.0f}%)** — every reinvested dollar earns extraordinary returns. Buffett/Munger anchor."))
+    elif roic >= 0.20:
+        flags.append((":green_circle:", f"**Strong ROIC ({roic*100:.0f}%)** — clear economic moat, {(roic-wacc)*100:+.0f}pp over cost of capital."))
+    elif roic < 0:
+        flags.append((":red_circle:", f"**ROIC negative ({roic*100:.0f}%)** — burning capital. Munger's hard-pass criterion."))
+    elif roic < wacc:
+        flags.append((":red_circle:", f"**ROIC below WACC** ({roic*100:.0f}% vs {wacc*100:.0f}%) — destroying value with every dollar reinvested."))
+
+if nd is not None and nd < -5_000_000_000:
+    flags.append((":green_circle:", "**Net cash position** — fortress balance sheet, optionality on downturns."))
+elif extras.debt_to_ebitda is not None and extras.debt_to_ebitda > 3.5:
+    flags.append((":warning:", f"**Leverage elevated** ({extras.debt_to_ebitda:.1f}x EBITDA) — refinancing / cycle risk."))
+
+if extras.capex_to_sales is not None and extras.capex_to_sales > 0.30:
+    flags.append((":warning:", f"**Capex-heavy** ({extras.capex_to_sales*100:.0f}% of sales) — incremental ROIC matters more than headline FCF."))
+
+if extras.fcf_margin_after_capex is not None and extras.fcf_margin_after_capex < 0:
+    flags.append((":red_circle:", f"**Negative FCF after capex** ({extras.fcf_margin_after_capex*100:.0f}%) — funded by debt or equity, not internal cash."))
+elif extras.fcf_margin_after_capex is not None and extras.fcf_margin_after_capex >= 0.20:
+    flags.append((":green_circle:", f"**Strong FCF after capex** ({extras.fcf_margin_after_capex*100:.0f}%) — real cash generation, not accounting earnings."))
+
+if extras.rd_to_sales is not None and extras.rd_to_sales >= 0.15:
+    flags.append((":bulb:", f"**Heavy R&D ({extras.rd_to_sales*100:.0f}% of sales)** — moat-building investment."))
+
+if flags:
+    for icon, msg in flags:
+        st.markdown(f"{icon} {msg}")
+
+st.markdown("---")
+
 # ---------------- ANALYST CONSENSUS + PRICE TARGETS ----------------
 left, right = st.columns([1, 2])
 with left:

@@ -80,6 +80,23 @@ class CompanyExtras(BaseModel):
     week52_high: float | None = None
     week52_low: float | None = None
 
+    # Earnings power & balance sheet (Pass 1)
+    roic: float | None = None                   # e.g. 0.45 = 45%
+    roic_5y_avg: float | None = None
+    roic_trend: str | None = None               # "improving" | "stable" | "declining"
+    wacc: float | None = None
+    net_debt_usd: float | None = None           # negative = net cash
+    debt_to_ebitda: float | None = None
+    interest_coverage: float | None = None
+    current_ratio: float | None = None
+    capex_to_sales: float | None = None
+    capex_guidance_trend: str | None = None     # "raising" | "stable" | "cutting"
+    fcf_margin_after_capex: float | None = None
+    rd_to_sales: float | None = None
+    rd_trend: str | None = None
+    buyback_yield: float | None = None
+    total_shareholder_yield: float | None = None
+
     # Analyst consensus
     analyst_buy: int | None = None
     analyst_hold: int | None = None

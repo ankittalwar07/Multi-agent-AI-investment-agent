@@ -41,6 +41,19 @@ def company_to_view(
         "fcf_yield": e.get("fcf_yield") if isinstance(e, dict) else getattr(e, "fcf_yield", None),
         "dividend_yield": e.get("dividend_yield") if isinstance(e, dict) else getattr(e, "dividend_yield", None),
         "expected_return_12m": e.get("expected_return_12m") if isinstance(e, dict) else getattr(e, "expected_return_12m", None),
+        # Earnings power (Pass 1) — needed by Buffett/Munger ROIC-anchored rubrics
+        "roic": e.get("roic") if isinstance(e, dict) else getattr(e, "roic", None),
+        "roic_5y_avg": e.get("roic_5y_avg") if isinstance(e, dict) else getattr(e, "roic_5y_avg", None),
+        "roic_trend": e.get("roic_trend") if isinstance(e, dict) else getattr(e, "roic_trend", None),
+        "wacc": e.get("wacc") if isinstance(e, dict) else getattr(e, "wacc", None),
+        "net_debt_usd": e.get("net_debt_usd") if isinstance(e, dict) else getattr(e, "net_debt_usd", None),
+        "debt_to_ebitda": e.get("debt_to_ebitda") if isinstance(e, dict) else getattr(e, "debt_to_ebitda", None),
+        "interest_coverage": e.get("interest_coverage") if isinstance(e, dict) else getattr(e, "interest_coverage", None),
+        "capex_to_sales": e.get("capex_to_sales") if isinstance(e, dict) else getattr(e, "capex_to_sales", None),
+        "capex_guidance_trend": e.get("capex_guidance_trend") if isinstance(e, dict) else getattr(e, "capex_guidance_trend", None),
+        "fcf_margin_after_capex": e.get("fcf_margin_after_capex") if isinstance(e, dict) else getattr(e, "fcf_margin_after_capex", None),
+        "rd_to_sales": e.get("rd_to_sales") if isinstance(e, dict) else getattr(e, "rd_to_sales", None),
+        "total_shareholder_yield": e.get("total_shareholder_yield") if isinstance(e, dict) else getattr(e, "total_shareholder_yield", None),
     }
 
 

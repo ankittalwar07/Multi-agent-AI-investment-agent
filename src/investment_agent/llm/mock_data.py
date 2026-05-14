@@ -823,6 +823,322 @@ MOCK_FINDINGS: dict[str, list[dict]] = {
 }
 
 
+# ---------- earnings power patch (Pass 1) ----------
+#
+# Hand-crafted illustrative values for the new "Earnings Power & Balance Sheet"
+# section. Each entry keyed by company name (must match _co name exactly).
+# Numbers are plausible but illustrative (May 2026 cutoff) — not investment advice.
+#
+# Fields:
+#   roic, roic_5y_avg, roic_trend, wacc
+#   net_debt_usd  (negative = net cash)
+#   debt_to_ebitda, interest_coverage, current_ratio
+#   capex_to_sales, capex_guidance_trend
+#   fcf_margin_after_capex
+#   rd_to_sales, rd_trend
+#   buyback_yield, total_shareholder_yield
+
+EARNINGS_POWER: dict[str, dict] = {
+    # Materials
+    "Freeport-McMoRan": dict(
+        roic=0.14, roic_5y_avg=0.09, roic_trend="improving", wacc=0.09,
+        net_debt_usd=8_000_000_000, debt_to_ebitda=1.1, interest_coverage=11, current_ratio=2.1,
+        capex_to_sales=0.12, capex_guidance_trend="stable",
+        fcf_margin_after_capex=0.12, rd_to_sales=0.005, rd_trend="stable",
+        buyback_yield=0.015, total_shareholder_yield=0.027,
+    ),
+    "Southern Copper": dict(
+        roic=0.25, roic_5y_avg=0.21, roic_trend="stable", wacc=0.09,
+        net_debt_usd=5_000_000_000, debt_to_ebitda=1.0, interest_coverage=18, current_ratio=2.8,
+        capex_to_sales=0.15, capex_guidance_trend="raising",
+        fcf_margin_after_capex=0.18, rd_to_sales=0.003, rd_trend="stable",
+        buyback_yield=0.0, total_shareholder_yield=0.045,
+    ),
+    "BHP Group": dict(
+        roic=0.18, roic_5y_avg=0.17, roic_trend="stable", wacc=0.085,
+        net_debt_usd=12_000_000_000, debt_to_ebitda=0.6, interest_coverage=22, current_ratio=1.4,
+        capex_to_sales=0.11, capex_guidance_trend="stable",
+        fcf_margin_after_capex=0.20, rd_to_sales=0.001, rd_trend="stable",
+        buyback_yield=0.01, total_shareholder_yield=0.062,
+    ),
+    "MP Materials": dict(
+        roic=-0.02, roic_5y_avg=0.05, roic_trend="declining", wacc=0.12,
+        net_debt_usd=-150_000_000, debt_to_ebitda=2.5, interest_coverage=2.5, current_ratio=4.0,
+        capex_to_sales=0.55, capex_guidance_trend="raising",
+        fcf_margin_after_capex=-0.30, rd_to_sales=0.06, rd_trend="rising",
+        buyback_yield=0.0, total_shareholder_yield=0.0,
+    ),
+    "Lynas Rare Earths": dict(
+        roic=0.10, roic_5y_avg=0.12, roic_trend="declining", wacc=0.11,
+        net_debt_usd=-200_000_000, debt_to_ebitda=0.2, interest_coverage=25, current_ratio=3.5,
+        capex_to_sales=0.30, capex_guidance_trend="raising",
+        fcf_margin_after_capex=-0.05, rd_to_sales=0.025, rd_trend="rising",
+        buyback_yield=0.0, total_shareholder_yield=0.0,
+    ),
+    # Industrial gases
+    "Linde": dict(
+        roic=0.16, roic_5y_avg=0.14, roic_trend="improving", wacc=0.07,
+        net_debt_usd=14_000_000_000, debt_to_ebitda=1.3, interest_coverage=18, current_ratio=0.9,
+        capex_to_sales=0.13, capex_guidance_trend="raising",
+        fcf_margin_after_capex=0.17, rd_to_sales=0.018, rd_trend="stable",
+        buyback_yield=0.025, total_shareholder_yield=0.038,
+    ),
+    "Air Products": dict(
+        roic=0.10, roic_5y_avg=0.12, roic_trend="declining", wacc=0.075,
+        net_debt_usd=10_500_000_000, debt_to_ebitda=2.4, interest_coverage=10, current_ratio=1.5,
+        capex_to_sales=0.28, capex_guidance_trend="raising",
+        fcf_margin_after_capex=-0.05, rd_to_sales=0.012, rd_trend="stable",
+        buyback_yield=0.0, total_shareholder_yield=0.025,
+    ),
+    "Air Liquide": dict(
+        roic=0.11, roic_5y_avg=0.10, roic_trend="stable", wacc=0.07,
+        net_debt_usd=12_500_000_000, debt_to_ebitda=1.8, interest_coverage=15, current_ratio=1.0,
+        capex_to_sales=0.13, capex_guidance_trend="stable",
+        fcf_margin_after_capex=0.10, rd_to_sales=0.015, rd_trend="stable",
+        buyback_yield=0.005, total_shareholder_yield=0.024,
+    ),
+    # Specialty chemicals
+    "Shin-Etsu Chemical": dict(
+        roic=0.18, roic_5y_avg=0.16, roic_trend="improving", wacc=0.08,
+        net_debt_usd=-5_000_000_000, debt_to_ebitda=0.0, interest_coverage=80, current_ratio=4.0,
+        capex_to_sales=0.10, capex_guidance_trend="raising",
+        fcf_margin_after_capex=0.22, rd_to_sales=0.055, rd_trend="rising",
+        buyback_yield=0.018, total_shareholder_yield=0.036,
+    ),
+    "JSR Corporation": dict(
+        roic=0.10, roic_5y_avg=0.09, roic_trend="stable", wacc=0.085,
+        net_debt_usd=1_000_000_000, debt_to_ebitda=1.5, interest_coverage=8, current_ratio=2.0,
+        capex_to_sales=0.10, capex_guidance_trend="raising",
+        fcf_margin_after_capex=0.07, rd_to_sales=0.075, rd_trend="rising",
+        buyback_yield=0.005, total_shareholder_yield=0.030,
+    ),
+    "Entegris": dict(
+        roic=0.08, roic_5y_avg=0.12, roic_trend="declining", wacc=0.09,
+        net_debt_usd=4_700_000_000, debt_to_ebitda=3.5, interest_coverage=4, current_ratio=2.5,
+        capex_to_sales=0.09, capex_guidance_trend="stable",
+        fcf_margin_after_capex=0.06, rd_to_sales=0.045, rd_trend="stable",
+        buyback_yield=0.0, total_shareholder_yield=0.006,
+    ),
+    # Substrates
+    "Ibiden": dict(
+        roic=0.13, roic_5y_avg=0.11, roic_trend="improving", wacc=0.08,
+        net_debt_usd=-500_000_000, debt_to_ebitda=0.0, interest_coverage=50, current_ratio=2.5,
+        capex_to_sales=0.28, capex_guidance_trend="raising",
+        fcf_margin_after_capex=0.05, rd_to_sales=0.025, rd_trend="rising",
+        buyback_yield=0.01, total_shareholder_yield=0.023,
+    ),
+    "Unimicron": dict(
+        roic=0.11, roic_5y_avg=0.10, roic_trend="stable", wacc=0.09,
+        net_debt_usd=800_000_000, debt_to_ebitda=1.2, interest_coverage=10, current_ratio=2.0,
+        capex_to_sales=0.22, capex_guidance_trend="raising",
+        fcf_margin_after_capex=0.04, rd_to_sales=0.020, rd_trend="stable",
+        buyback_yield=0.0, total_shareholder_yield=0.022,
+    ),
+    "Shinko Electric": dict(
+        roic=0.09, roic_5y_avg=0.10, roic_trend="stable", wacc=0.085,
+        net_debt_usd=-300_000_000, debt_to_ebitda=0.0, interest_coverage=30, current_ratio=2.8,
+        capex_to_sales=0.20, capex_guidance_trend="stable",
+        fcf_margin_after_capex=0.04, rd_to_sales=0.025, rd_trend="stable",
+        buyback_yield=0.0, total_shareholder_yield=0.025,
+    ),
+    # Water
+    "Xylem": dict(
+        roic=0.11, roic_5y_avg=0.10, roic_trend="improving", wacc=0.08,
+        net_debt_usd=2_200_000_000, debt_to_ebitda=1.5, interest_coverage=14, current_ratio=2.0,
+        capex_to_sales=0.04, capex_guidance_trend="stable",
+        fcf_margin_after_capex=0.12, rd_to_sales=0.030, rd_trend="stable",
+        buyback_yield=0.0, total_shareholder_yield=0.010,
+    ),
+    "Pentair": dict(
+        roic=0.13, roic_5y_avg=0.11, roic_trend="stable", wacc=0.085,
+        net_debt_usd=1_500_000_000, debt_to_ebitda=1.7, interest_coverage=12, current_ratio=1.5,
+        capex_to_sales=0.025, capex_guidance_trend="stable",
+        fcf_margin_after_capex=0.14, rd_to_sales=0.020, rd_trend="stable",
+        buyback_yield=0.018, total_shareholder_yield=0.037,
+    ),
+    # Semi capex
+    "ASML Holding": dict(
+        roic=0.48, roic_5y_avg=0.42, roic_trend="improving", wacc=0.08,
+        net_debt_usd=-4_500_000_000, debt_to_ebitda=0.0, interest_coverage=200, current_ratio=2.5,
+        capex_to_sales=0.10, capex_guidance_trend="raising",
+        fcf_margin_after_capex=0.25, rd_to_sales=0.13, rd_trend="rising",
+        buyback_yield=0.012, total_shareholder_yield=0.020,
+    ),
+    "TSMC": dict(
+        roic=0.27, roic_5y_avg=0.22, roic_trend="improving", wacc=0.08,
+        net_debt_usd=-30_000_000_000, debt_to_ebitda=0.0, interest_coverage=150, current_ratio=2.4,
+        capex_to_sales=0.41, capex_guidance_trend="stable",
+        fcf_margin_after_capex=0.10, rd_to_sales=0.085, rd_trend="rising",
+        buyback_yield=0.0, total_shareholder_yield=0.013,
+    ),
+    "Samsung Foundry": dict(
+        roic=0.09, roic_5y_avg=0.13, roic_trend="declining", wacc=0.085,
+        net_debt_usd=-40_000_000_000, debt_to_ebitda=0.0, interest_coverage=100, current_ratio=2.5,
+        capex_to_sales=0.16, capex_guidance_trend="stable",
+        fcf_margin_after_capex=0.05, rd_to_sales=0.09, rd_trend="rising",
+        buyback_yield=0.0, total_shareholder_yield=0.025,
+    ),
+    "Intel Foundry": dict(
+        roic=-0.04, roic_5y_avg=0.06, roic_trend="declining", wacc=0.10,
+        net_debt_usd=24_000_000_000, debt_to_ebitda=4.5, interest_coverage=2, current_ratio=1.5,
+        capex_to_sales=0.25, capex_guidance_trend="raising",
+        fcf_margin_after_capex=-0.10, rd_to_sales=0.16, rd_trend="rising",
+        buyback_yield=0.0, total_shareholder_yield=0.0,
+    ),
+    "TSMC (CoWoS)": dict(  # Refers user back to TSM parent
+        roic=0.27, roic_trend="improving",
+    ),
+    "Amkor Technology": dict(
+        roic=0.10, roic_5y_avg=0.10, roic_trend="stable", wacc=0.09,
+        net_debt_usd=-100_000_000, debt_to_ebitda=0.0, interest_coverage=20, current_ratio=2.5,
+        capex_to_sales=0.20, capex_guidance_trend="raising",
+        fcf_margin_after_capex=0.04, rd_to_sales=0.02, rd_trend="stable",
+        buyback_yield=0.01, total_shareholder_yield=0.035,
+    ),
+    # Silicon
+    "NVIDIA": dict(
+        roic=0.82, roic_5y_avg=0.55, roic_trend="improving", wacc=0.10,
+        net_debt_usd=-30_000_000_000, debt_to_ebitda=0.0, interest_coverage=350, current_ratio=4.0,
+        capex_to_sales=0.03, capex_guidance_trend="stable",
+        fcf_margin_after_capex=0.50, rd_to_sales=0.18, rd_trend="rising",
+        buyback_yield=0.014, total_shareholder_yield=0.017,
+    ),
+    "AMD": dict(
+        roic=0.12, roic_5y_avg=0.20, roic_trend="declining", wacc=0.10,
+        net_debt_usd=-5_500_000_000, debt_to_ebitda=0.0, interest_coverage=80, current_ratio=2.6,
+        capex_to_sales=0.03, capex_guidance_trend="stable",
+        fcf_margin_after_capex=0.18, rd_to_sales=0.22, rd_trend="rising",
+        buyback_yield=0.008, total_shareholder_yield=0.008,
+    ),
+    "Google TPU": dict(
+        roic=0.26, roic_5y_avg=0.24, roic_trend="stable", wacc=0.085,
+        net_debt_usd=-95_000_000_000, debt_to_ebitda=0.0, interest_coverage=300, current_ratio=2.0,
+        capex_to_sales=0.18, capex_guidance_trend="raising",
+        fcf_margin_after_capex=0.20, rd_to_sales=0.14, rd_trend="rising",
+        buyback_yield=0.022, total_shareholder_yield=0.027,
+    ),
+    # Memory
+    "SK Hynix": dict(
+        roic=0.20, roic_5y_avg=0.13, roic_trend="improving", wacc=0.10,
+        net_debt_usd=18_000_000_000, debt_to_ebitda=1.8, interest_coverage=12, current_ratio=1.8,
+        capex_to_sales=0.27, capex_guidance_trend="raising",
+        fcf_margin_after_capex=0.12, rd_to_sales=0.085, rd_trend="rising",
+        buyback_yield=0.005, total_shareholder_yield=0.017,
+    ),
+    "Micron": dict(
+        roic=0.15, roic_5y_avg=0.10, roic_trend="improving", wacc=0.10,
+        net_debt_usd=8_000_000_000, debt_to_ebitda=1.6, interest_coverage=11, current_ratio=3.0,
+        capex_to_sales=0.30, capex_guidance_trend="raising",
+        fcf_margin_after_capex=0.05, rd_to_sales=0.11, rd_trend="rising",
+        buyback_yield=0.0, total_shareholder_yield=0.005,
+    ),
+    # Networking
+    "Broadcom": dict(
+        roic=0.21, roic_5y_avg=0.22, roic_trend="stable", wacc=0.085,
+        net_debt_usd=68_000_000_000, debt_to_ebitda=3.0, interest_coverage=8, current_ratio=1.3,
+        capex_to_sales=0.02, capex_guidance_trend="stable",
+        fcf_margin_after_capex=0.42, rd_to_sales=0.16, rd_trend="stable",
+        buyback_yield=0.018, total_shareholder_yield=0.030,
+    ),
+    "Marvell": dict(
+        roic=0.05, roic_5y_avg=0.07, roic_trend="stable", wacc=0.10,
+        net_debt_usd=3_800_000_000, debt_to_ebitda=4.8, interest_coverage=4, current_ratio=1.6,
+        capex_to_sales=0.04, capex_guidance_trend="stable",
+        fcf_margin_after_capex=0.15, rd_to_sales=0.30, rd_trend="rising",
+        buyback_yield=0.01, total_shareholder_yield=0.013,
+    ),
+    "Coherent": dict(
+        roic=0.04, roic_5y_avg=0.06, roic_trend="declining", wacc=0.10,
+        net_debt_usd=5_500_000_000, debt_to_ebitda=6.0, interest_coverage=2, current_ratio=2.0,
+        capex_to_sales=0.06, capex_guidance_trend="stable",
+        fcf_margin_after_capex=0.05, rd_to_sales=0.10, rd_trend="rising",
+        buyback_yield=0.0, total_shareholder_yield=0.0,
+    ),
+    "Lumentum": dict(
+        roic=-0.02, roic_5y_avg=0.05, roic_trend="declining", wacc=0.11,
+        net_debt_usd=1_200_000_000, debt_to_ebitda=8.0, interest_coverage=2, current_ratio=4.0,
+        capex_to_sales=0.05, capex_guidance_trend="stable",
+        fcf_margin_after_capex=0.02, rd_to_sales=0.18, rd_trend="stable",
+        buyback_yield=0.0, total_shareholder_yield=0.0,
+    ),
+    # Power & cooling
+    "Vertiv Holdings": dict(
+        roic=0.20, roic_5y_avg=0.12, roic_trend="improving", wacc=0.09,
+        net_debt_usd=2_000_000_000, debt_to_ebitda=1.5, interest_coverage=14, current_ratio=1.8,
+        capex_to_sales=0.03, capex_guidance_trend="raising",
+        fcf_margin_after_capex=0.16, rd_to_sales=0.03, rd_trend="stable",
+        buyback_yield=0.005, total_shareholder_yield=0.006,
+    ),
+    "Schneider Electric": dict(
+        roic=0.15, roic_5y_avg=0.13, roic_trend="improving", wacc=0.075,
+        net_debt_usd=9_000_000_000, debt_to_ebitda=1.4, interest_coverage=15, current_ratio=1.2,
+        capex_to_sales=0.03, capex_guidance_trend="raising",
+        fcf_margin_after_capex=0.14, rd_to_sales=0.05, rd_trend="rising",
+        buyback_yield=0.005, total_shareholder_yield=0.023,
+    ),
+    "Eaton": dict(
+        roic=0.16, roic_5y_avg=0.13, roic_trend="improving", wacc=0.08,
+        net_debt_usd=8_500_000_000, debt_to_ebitda=1.7, interest_coverage=14, current_ratio=1.4,
+        capex_to_sales=0.03, capex_guidance_trend="raising",
+        fcf_margin_after_capex=0.16, rd_to_sales=0.035, rd_trend="stable",
+        buyback_yield=0.015, total_shareholder_yield=0.027,
+    ),
+    # Hyperscale clouds
+    "Microsoft": dict(
+        roic=0.30, roic_5y_avg=0.27, roic_trend="stable", wacc=0.08,
+        net_debt_usd=-50_000_000_000, debt_to_ebitda=0.0, interest_coverage=180, current_ratio=1.7,
+        capex_to_sales=0.20, capex_guidance_trend="raising",
+        fcf_margin_after_capex=0.25, rd_to_sales=0.13, rd_trend="stable",
+        buyback_yield=0.012, total_shareholder_yield=0.019,
+    ),
+    "Amazon": dict(
+        roic=0.13, roic_5y_avg=0.10, roic_trend="improving", wacc=0.085,
+        net_debt_usd=-30_000_000_000, debt_to_ebitda=0.0, interest_coverage=80, current_ratio=1.0,
+        capex_to_sales=0.15, capex_guidance_trend="raising",
+        fcf_margin_after_capex=0.06, rd_to_sales=0.14, rd_trend="rising",
+        buyback_yield=0.0, total_shareholder_yield=0.0,
+    ),
+    "Alphabet": dict(
+        roic=0.26, roic_5y_avg=0.24, roic_trend="stable", wacc=0.085,
+        net_debt_usd=-95_000_000_000, debt_to_ebitda=0.0, interest_coverage=300, current_ratio=2.0,
+        capex_to_sales=0.18, capex_guidance_trend="raising",
+        fcf_margin_after_capex=0.20, rd_to_sales=0.14, rd_trend="rising",
+        buyback_yield=0.022, total_shareholder_yield=0.027,
+    ),
+    # Neoclouds
+    "CoreWeave": dict(
+        roic=-0.08, roic_5y_avg=None, roic_trend="declining", wacc=0.13,
+        net_debt_usd=15_000_000_000, debt_to_ebitda=8.0, interest_coverage=1.2, current_ratio=1.1,
+        capex_to_sales=1.20, capex_guidance_trend="raising",
+        fcf_margin_after_capex=-0.45, rd_to_sales=0.04, rd_trend="stable",
+        buyback_yield=0.0, total_shareholder_yield=0.0,
+    ),
+    # Models
+    "Meta Platforms": dict(
+        roic=0.27, roic_5y_avg=0.22, roic_trend="improving", wacc=0.09,
+        net_debt_usd=-30_000_000_000, debt_to_ebitda=0.0, interest_coverage=120, current_ratio=2.5,
+        capex_to_sales=0.17, capex_guidance_trend="raising",
+        fcf_margin_after_capex=0.22, rd_to_sales=0.28, rd_trend="rising",
+        buyback_yield=0.020, total_shareholder_yield=0.023,
+    ),
+    # Edge
+    "Qualcomm": dict(
+        roic=0.27, roic_5y_avg=0.22, roic_trend="stable", wacc=0.085,
+        net_debt_usd=2_000_000_000, debt_to_ebitda=0.3, interest_coverage=30, current_ratio=2.7,
+        capex_to_sales=0.04, capex_guidance_trend="stable",
+        fcf_margin_after_capex=0.24, rd_to_sales=0.19, rd_trend="stable",
+        buyback_yield=0.018, total_shareholder_yield=0.038,
+    ),
+    "Apple": dict(
+        roic=0.55, roic_5y_avg=0.42, roic_trend="improving", wacc=0.085,
+        net_debt_usd=-60_000_000_000, debt_to_ebitda=0.0, interest_coverage=200, current_ratio=1.0,
+        capex_to_sales=0.025, capex_guidance_trend="stable",
+        fcf_margin_after_capex=0.27, rd_to_sales=0.08, rd_trend="rising",
+        buyback_yield=0.030, total_shareholder_yield=0.035,
+    ),
+}
+
+
 # ---------- public helpers ----------
 
 def evidence_for(company_name: str, component: str) -> list[dict]:
@@ -863,5 +1179,15 @@ def findings_for_component(component_name: str) -> list[dict]:
     for c in base:
         c2 = dict(c)
         c2.setdefault("evidence", evidence_for(c["name"], component_name))
+        # Merge in the earnings-power patch if we have hand-crafted data for this name.
+        patch = EARNINGS_POWER.get(c["name"])
+        if patch:
+            extras = dict(c2.get("extras") or {})
+            for k, v in patch.items():
+                if v is not None and k not in extras:
+                    extras[k] = v
+                elif v is not None:
+                    extras[k] = v
+            c2["extras"] = extras
         enriched.append(c2)
     return enriched
