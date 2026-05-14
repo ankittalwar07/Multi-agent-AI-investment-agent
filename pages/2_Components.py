@@ -31,9 +31,15 @@ repo = RunRepository(Path(cfg["output_dir"]) / f"{cfg['chosen_run']}.db")
 view = repo.get_view(cfg["chosen_run"])
 df = view_to_dataframe(view)
 
-# Component selector at top
+# Component selector at top — honors a hand-off from the Datacenter Anatomy page
 comp_names = sorted({c.name for c in view.components})
-default_idx = comp_names.index("AI Accelerator Silicon") if "AI Accelerator Silicon" in comp_names else 0
+jump_to = st.session_state.pop("jump_to_component", None)
+if jump_to and jump_to in comp_names:
+    default_idx = comp_names.index(jump_to)
+elif "AI Accelerator Silicon" in comp_names:
+    default_idx = comp_names.index("AI Accelerator Silicon")
+else:
+    default_idx = 0
 component = st.selectbox("Component", comp_names, index=default_idx)
 
 comp_obj = next(c for c in view.components if c.name == component)
