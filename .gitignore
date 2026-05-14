@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual envs
+.venv/
+venv/
+env/
+.envrc
+
+# Env / secrets
+.env
+.env.local
+*.key
+*.pem
+
+# Runs (per-run SQLite + JSON output)
+data/runs/*
+!data/runs/.gitkeep
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Streamlit
+.streamlit/secrets.toml

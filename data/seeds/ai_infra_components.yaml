@@ -1,0 +1,103 @@
+version: 1
+updated: 2026-05-14
+description: |
+  Curated taxonomy of AI-infrastructure components and known incumbents, ordered
+  roughly from the silicon end of the stack up to the application layer. Used as
+  a prior by the Decomposer agent so it doesn't have to reinvent the taxonomy
+  every run. The Decomposer may add new components (with justification) but must
+  not silently drop seeded ones.
+
+components:
+  - name: EUV Lithography
+    category: semiconductor_capex
+    description: Extreme-ultraviolet lithography scanners required for <=5nm logic and advanced DRAM.
+    incumbents: [ASML, Carl Zeiss SMT, Cymer]
+    notes: ASML is effectively sole-source for EUV scanners; Zeiss SMT is sole-source for the optics.
+
+  - name: Leading-edge Foundry
+    category: semiconductor_manufacturing
+    description: <=3nm logic wafer fabrication.
+    incumbents: [TSMC, Samsung Foundry, Intel Foundry]
+    notes: TSMC has >90% share at the leading edge.
+
+  - name: AI Accelerator Silicon
+    category: compute_silicon
+    description: GPUs and custom ASICs that train and serve frontier models.
+    incumbents: [NVIDIA, AMD, Google TPU, AWS Trainium, Microsoft Maia]
+
+  - name: High-Bandwidth Memory (HBM)
+    category: memory
+    description: Stacked DRAM colocated with AI accelerators.
+    incumbents: [SK Hynix, Samsung, Micron]
+    notes: Three-supplier oligopoly; SK Hynix leads HBM3E.
+
+  - name: Advanced Packaging (CoWoS / SoIC)
+    category: semiconductor_manufacturing
+    description: 2.5D / 3D packaging required to bond logic dies to HBM stacks.
+    incumbents: [TSMC, ASE, Amkor]
+    notes: TSMC CoWoS capacity is the binding constraint on NVIDIA shipments.
+
+  - name: Datacenter Networking Silicon
+    category: networking
+    description: Switch ASICs and SmartNICs for AI clusters.
+    incumbents: [Broadcom, NVIDIA (Mellanox), Marvell]
+
+  - name: Optical Interconnect / Transceivers
+    category: networking
+    description: 800G/1.6T optical modules and co-packaged optics.
+    incumbents: [Coherent, Lumentum, Innolight, Eoptolink]
+
+  - name: Datacenter Power & Cooling
+    category: facilities
+    description: PDUs, busways, liquid cooling, immersion cooling for high-density AI racks.
+    incumbents: [Vertiv, Schneider Electric, Eaton]
+
+  - name: Hyperscale Cloud
+    category: compute_platform
+    description: Public cloud infrastructure offering large-scale GPU clusters.
+    incumbents: [AWS, Microsoft Azure, Google Cloud, Oracle Cloud]
+
+  - name: GPU Neoclouds
+    category: compute_platform
+    description: Specialty GPU-rental clouds.
+    incumbents: [CoreWeave, Lambda, Crusoe, Nebius]
+
+  - name: Foundation Model Labs
+    category: model_layer
+    description: Labs training frontier general-purpose models.
+    incumbents: [OpenAI, Anthropic, Google DeepMind, Meta AI, xAI, Mistral]
+
+  - name: Inference Hardware Startups
+    category: compute_silicon
+    description: Non-NVIDIA accelerators optimized for inference.
+    incumbents: [Groq, Cerebras, SambaNova, Tenstorrent]
+
+  - name: Vector Databases
+    category: data_layer
+    description: Embedding stores for retrieval-augmented generation.
+    incumbents: [Pinecone, Weaviate, Qdrant, Chroma]
+
+  - name: LLM Observability
+    category: tooling
+    description: Tracing, evaluation, and monitoring for LLM applications.
+    incumbents: [LangSmith, Arize, Weights & Biases, Braintrust]
+
+  - name: Data Labeling / RLHF
+    category: data_layer
+    description: Human-in-the-loop annotation and preference data for model training.
+    incumbents: [Scale AI, Surge, Labelbox]
+
+  - name: Agent Frameworks
+    category: tooling
+    description: Open-source orchestration libraries for LLM agent applications.
+    incumbents: [LangChain, LlamaIndex, CrewAI]
+
+  - name: Synthetic Data
+    category: data_layer
+    description: Generated training data for model pretraining and fine-tuning.
+    incumbents: [Gretel, Mostly AI, Tonic]
+
+  - name: Edge / On-Device Inference
+    category: compute_silicon
+    description: Mobile and embedded NPUs for on-device model inference.
+    incumbents: [Qualcomm, Apple Neural Engine, Hailo, MediaTek]
