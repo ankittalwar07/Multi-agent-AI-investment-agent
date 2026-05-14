@@ -1,12 +1,15 @@
-"""Streamlit dashboard entry point.
+"""Executive Summary — the front page of the AI Infra Arbitrage Dashboard.
 
-Run with: streamlit run app/streamlit_app.py
+Designed for a savvy investor: glance-able. Top BUY recommendations, expected
+portfolio return, recommendation distribution. Drill into the other pages for
+the value chain map, per-component deep dive, per-company thesis.
 """
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
+import pandas as pd
 import streamlit as st
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,22 +24,11 @@ from investment_agent.storage.repository import RunRepository, list_run_ids  # n
 
 
 def _load_secrets_into_env() -> None:
-    """Copy Streamlit Cloud secrets into env vars so providers can pick them up.
-
-    On Streamlit Cloud, users paste keys into Settings -> Secrets (TOML). We
-    mirror them into os.environ so the LLM providers (which read env vars)
-    and the paid-data tools work without code changes.
-    """
+    """Copy Streamlit Cloud secrets into env vars so providers can pick them up."""
     import os
-
     for key in (
-        "GOOGLE_API_KEY",
-        "ANTHROPIC_API_KEY",
-        "OPENAI_API_KEY",
-        "BLOOMBERG_API_KEY",
-        "PITCHBOOK_API_KEY",
-        "CRUNCHBASE_API_KEY",
-        "SIMILARWEB_API_KEY",
+        "GOOGLE_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY",
+        "BLOOMBERG_API_KEY", "PITCHBOOK_API_KEY", "CRUNCHBASE_API_KEY", "SIMILARWEB_API_KEY",
     ):
         try:
             val = st.secrets.get(key)  # type: ignore[attr-defined]
@@ -47,7 +39,6 @@ def _load_secrets_into_env() -> None:
 
 
 _load_secrets_into_env()
-
 
 st.set_page_config(
     page_title="AI Infra Arbitrage",
@@ -61,7 +52,6 @@ PROVIDERS = ["gemini", "anthropic", "openai", "mock"]
 DEFAULT_MODELS = {
     "anthropic": "claude-sonnet-4-6",
     "openai": "gpt-4o",
-    # Flash is the recommended free-tier model on Google AI Studio (most generous limits).
     "gemini": "gemini-2.0-flash",
     "mock": "mock-v1",
 }
@@ -70,43 +60,35 @@ DEFAULT_MODELS = {
 def sidebar() -> dict:
     settings = get_settings()
     with st.sidebar:
-        st.markdown("### :gear: LLM")
-        # Default to Anthropic Claude.
-        prov_default = settings.llm_provider if settings.llm_provider in PROVIDERS else "anthropic"
+        st.markdown("### LLM")
+        prov_default = settings.llm_provider if settings.llm_provider in PROVIDERS else "gemini"
         provider = st.selectbox(
-            "Provider",
-            PROVIDERS,
+            "Provider", PROVIDERS,
             index=PROVIDERS.index(prov_default) if prov_default in PROVIDERS else 0,
         )
         model = st.text_input("Model", value=settings.llm_model or DEFAULT_MODELS[provider])
         mock = st.toggle(
             "Demo mode (no API spend)",
             value=(provider == "mock"),
-            help="When on, uses hand-crafted realistic mock data so you can play with the dashboard without API keys.",
+            help="Uses hand-crafted realistic data so you can explore the dashboard without API keys.",
         )
 
         st.markdown("---")
-        st.markdown("### :money_with_wings: Run controls")
-        max_cost = st.slider("Max cost (USD)", min_value=0.5, max_value=50.0, value=float(settings.max_cost_usd), step=0.5)
-        max_components = st.number_input(
-            "Limit components (0 = all)",
-            min_value=0, max_value=40, value=0, step=1,
-            help="Useful for quick demos; e.g. 5 components.",
-        )
-
-        st.markdown("---")
-        st.markdown("### :file_folder: Run picker")
+        st.markdown("### Run picker")
         runs = list_run_ids(settings.run_output_dir)
         chosen_run = st.selectbox("Existing runs", runs) if runs else None
         if not runs:
-            st.caption("No runs yet — go to the **Run** page to generate one.")
+            st.caption("No runs yet.")
+
+        st.markdown("---")
+        with st.expander("Advanced"):
+            max_cost = st.slider("Max cost (USD)", 0.5, 50.0, float(settings.max_cost_usd), 0.5)
+            max_components = st.number_input("Limit components (0=all)", 0, 40, 0, 1)
 
     return {
-        "provider": provider,
-        "model": model,
-        "mock": mock,
-        "max_cost": max_cost,
-        "max_components": int(max_components) or None,
+        "provider": provider, "model": model, "mock": mock,
+        "max_cost": max_cost if 'max_cost' in locals() else float(settings.max_cost_usd),
+        "max_components": int(max_components) or None if 'max_components' in locals() else None,
         "chosen_run": chosen_run,
         "output_dir": settings.run_output_dir,
     }
@@ -115,21 +97,22 @@ def sidebar() -> dict:
 cfg = sidebar()
 st.session_state["cfg"] = cfg
 
-# Hero
-st.markdown("# :dart: AI Infrastructure Arbitrage Dashboard")
 st.markdown(
-    "_For investors hunting **sole-source bottlenecks**, **capacity-constrained incumbents**, "
-    "and **mispriced private positions** across the AI stack._"
+    "<h1 style='margin-bottom:0;'>AI Infrastructure — Investment Brief</h1>"
+    "<p style='color:#94a3b8;margin-top:4px;'>"
+    "Bottom-up coverage of the AI value chain. Sole-source moats, capacity-constrained "
+    "incumbents, and mispriced positions across raw materials &rarr; silicon &rarr; cloud &rarr; models."
+    "</p>",
+    unsafe_allow_html=True,
 )
+
 
 if not cfg["chosen_run"]:
     st.info(
-        ":sparkles: **First time here?** Generate a demo run right now — the dashboard "
-        "uses hand-crafted realistic mock data for every layer of the AI stack so you can "
-        "explore the visuals without configuring any API keys."
+        "**First time here?** Generate a demo run — the dashboard ships with realistic "
+        "hand-crafted data so you can evaluate it without configuring any API keys."
     )
-    col_a, col_b = st.columns([1, 3])
-    if col_a.button(":rocket: Generate demo run", type="primary", use_container_width=True):
+    if st.button("Generate demo run", type="primary"):
         from investment_agent.config import Settings as _Settings
         from investment_agent.graph.build import Pipeline, RunOptions
         from investment_agent.llm import get_provider
@@ -143,82 +126,117 @@ if not cfg["chosen_run"]:
             )
             pipeline = Pipeline(settings=settings, llm_factory=lambda: get_provider("mock"))
             result = pipeline.run(
-                RunOptions(
-                    provider="mock", model="mock-v1", mock=True,
-                    max_components=None, output_dir=cfg["output_dir"],
-                )
+                RunOptions(provider="mock", model="mock-v1", mock=True,
+                           max_components=None, output_dir=cfg["output_dir"])
             )
-        st.success(f"Demo run complete: `{result.run_id}` ({len(result.state.scored)} companies). Reload the page or pick it from the sidebar.")
+        st.success(f"Demo run complete: `{result.run_id}` ({len(result.state.scored)} companies).")
         st.rerun()
-    col_b.markdown(
-        "_or_ head to the **Run** page in the sidebar and click _Start new run_."
-    )
     st.stop()
 
-# Selected run summary
-try:
-    repo = RunRepository(Path(cfg["output_dir"]) / f"{cfg['chosen_run']}.db")
-    view = repo.get_view(cfg["chosen_run"])
-except Exception as e:
-    st.error(f"Could not load run: {e}")
-    st.stop()
+
+repo = RunRepository(Path(cfg["output_dir"]) / f"{cfg['chosen_run']}.db")
+view = repo.get_view(cfg["chosen_run"])
 
 from dashboard_utils import (  # noqa: E402
-    chart_top_arbitrage,
-    chart_demand_vs_share,
-    chart_moat_heatmap,
-    chart_score_distribution,
+    REC_COLORS, REC_LABELS,
+    chart_recommendation_distribution, chart_top_picks_bar, chart_market_structure,
+    fmt_money, fmt_pct, fmt_price, get_top_picks, rec_badge, structure_badge,
     view_to_dataframe,
 )
 
 df = view_to_dataframe(view)
 
-# Top-line metrics
+
+# ---------------- KPI ROW ----------------
+strong_buy_df = df[df["recommendation"] == "STRONG_BUY"]
+buy_df = df[df["recommendation"] == "BUY"]
+actionable_df = pd.concat([strong_buy_df, buy_df])
+sole_source_df = df[df["single_source"] == True]  # noqa: E712
+exp_ret = actionable_df["expected_return_12m"].dropna()
+weighted_exp_ret = exp_ret.mean() if not exp_ret.empty else 0
+
 c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("Components", len(view.components))
-c2.metric("Companies", len(view.companies))
-sole = int(df["single_source"].sum()) if not df.empty else 0
-c3.metric("Sole-source", sole)
-priv = int((df["is_public"] == False).sum()) if not df.empty else 0  # noqa: E712
-c4.metric("Private", priv)
-c5.metric("Cost (USD)", f"${view.run.cost_usd:.2f}")
+c1.metric("STRONG BUY", len(strong_buy_df))
+c2.metric("BUY", len(buy_df))
+c3.metric("Sole-source", len(sole_source_df))
+c4.metric("Components covered", len(view.components))
+c5.metric("Avg expected return (12m)", f"+{weighted_exp_ret * 100:.1f}%")
 
 st.caption(
-    f"Run **{view.run.id}** · provider **{view.run.provider}** · model **{view.run.model or '-'}** "
-    f"· started **{view.run.started_at}** · status **{view.run.status}**"
+    f"Coverage as of run **{view.run.id}** &middot; provider **{view.run.provider}** &middot; "
+    f"{len(view.companies)} companies &middot; total LLM cost ${view.run.cost_usd:.2f}"
 )
 
 st.markdown("---")
 
-# Featured chart: top arbitrage opportunities
-st.subheader(":fire: Top Arbitrage Opportunities")
-st.caption(
-    "Composite moat score boosted by an _arbitrage tilt_ — private status, "
-    "capacity shortage, customer concentration, sole-source position."
-)
-st.plotly_chart(chart_top_arbitrage(df, top_n=12), use_container_width=True)
+
+# ---------------- TOP 5 PICKS ----------------
+st.markdown("## :fire: Top high-conviction picks")
+st.caption("Filtered to STRONG BUY / BUY with HIGH conviction. Click any name to drill into the full thesis.")
+
+top5 = get_top_picks(df, n=5)
+for _, row in top5.iterrows():
+    rec = row["recommendation"]
+    exp_ret_pct = (row["expected_return_12m"] or 0) * 100
+    with st.container(border=True):
+        c1, c2, c3, c4 = st.columns([4, 2, 2, 3])
+        with c1:
+            st.markdown(
+                f"### {row['name']} "
+                + (f"<span style='color:#94a3b8;font-size:18px;'>· {row['ticker']}</span>" if row['ticker'] else "")
+                + f"<br/>{rec_badge(rec)}",
+                unsafe_allow_html=True,
+            )
+            st.caption(f"_{row['component']}_  &middot;  {row['conviction'] or '—'} conviction")
+        with c2:
+            st.metric("Price", fmt_price(row["stock_price"]))
+            st.caption(f"Mkt cap {fmt_money(row['market_cap_usd'])}")
+        with c3:
+            st.metric("12m expected", f"+{exp_ret_pct:.0f}%")
+            st.caption(f"Base ${row['base_target']:,.0f}" if row["base_target"] else "")
+        with c4:
+            if row.get("thesis_summary"):
+                st.write(row["thesis_summary"])
 
 st.markdown("---")
 
-cols = st.columns([1, 1])
-with cols[0]:
-    st.subheader(":bar_chart: Moat × Share Heatmap")
-    st.caption("Where the moat clusters by share bucket across the stack.")
-    st.plotly_chart(chart_moat_heatmap(df), use_container_width=True)
-with cols[1]:
-    st.subheader(":crystal_ball: Demand vs Share")
-    st.caption("Bubble size = valuation (USD). Top-right = high share + high moat.")
-    st.plotly_chart(chart_demand_vs_share(df), use_container_width=True)
+
+# ---------------- RECOMMENDATION DISTRIBUTION + MARKET STRUCTURE ----------------
+left, right = st.columns([2, 1])
+with left:
+    st.markdown("### Recommendation distribution")
+    st.caption("How conviction is allocated across the universe.")
+    st.plotly_chart(chart_recommendation_distribution(df), use_container_width=True)
+with right:
+    st.markdown("### Market structure")
+    st.caption("Structure of each component (mono/duo/oligo/fragmented).")
+    st.plotly_chart(chart_market_structure(df), use_container_width=True)
+
 
 st.markdown("---")
-st.subheader(":chart_with_upwards_trend: Composite Score Distribution")
-st.plotly_chart(chart_score_distribution(df), use_container_width=True)
+
+
+# ---------------- EXPECTED RETURN — top 10 ----------------
+st.markdown("## Expected 12-month return — top 10")
+st.plotly_chart(chart_top_picks_bar(df, n=10), use_container_width=True)
+
 
 st.markdown("---")
+
+
+# ---------------- WHERE TO GO NEXT ----------------
 st.markdown(
-    "**Next:** explore the sidebar pages →\n"
-    "- :rocket: **Run** — kick off a fresh research run\n"
-    "- :package: **Components** — drill into each layer of the AI stack\n"
-    "- :office: **Companies** — filter + evidence drill-down\n"
-    "- :brain: **Synthesis** — written investment thesis with downloadable report"
+    """
+### Explore the brief
+- **:world_map: Market Map** — value-chain visualization with structure badges and demand/supply call-outs per layer
+- **:package: Components** — drill into any layer (e.g. _Copper_, _HBM_, _Foundation Models_) with share splits, top picks, risks
+- **:office: Companies** — sortable / filterable table with full financials and analyst consensus
+- **:bar_chart: Investment Thesis** — full per-company write-up: price card, P/E ratios, bull/base/bear price targets, thesis bullets, risks, catalysts
+- **:bookmark_tabs: Portfolio** — weighted aggregation of all BUY-rated names with expected portfolio return
+"""
+)
+
+st.caption(
+    "_This dashboard is research output, not investment advice. Demo-mode data is illustrative; "
+    "switch to a live LLM provider for cited, real-time research._"
 )

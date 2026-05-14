@@ -35,6 +35,7 @@ class CompanyFinding:
     demand_signal: str | None = None
     valuation_usd: float | None = None
     notes: str | None = None
+    extras: dict = field(default_factory=dict)
     evidence: list[EvidenceRecord] = field(default_factory=list)
 
 
@@ -197,6 +198,7 @@ class ComponentResearcher:
                     demand_signal=raw.get("demand_signal"),
                     valuation_usd=raw.get("valuation_usd"),
                     notes=raw.get("notes"),
+                    extras=raw.get("extras") or {},
                     evidence=evidence,
                 )
             )

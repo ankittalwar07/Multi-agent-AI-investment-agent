@@ -197,6 +197,7 @@ class Pipeline:
                     demand_signal=finding.demand_signal,
                     valuation_usd=finding.valuation_usd,
                     notes=finding.notes,
+                    extras=finding.extras,
                 )
                 company_ids[(res.component_name, finding.name)] = cid
                 for ev in finding.evidence:

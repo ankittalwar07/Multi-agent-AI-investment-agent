@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .models import (
+    CompanyExtras,
     CompanyRow,
     ComponentRow,
     EvidenceRow,
@@ -125,6 +126,7 @@ class RunRepository:
         demand_signal: str | None = None,
         valuation_usd: float | None = None,
         notes: str | None = None,
+        extras: dict | None = None,
     ) -> str:
         cid = f"co_{uuid.uuid4().hex[:10]}"
         with self._conn() as conn:
@@ -132,8 +134,8 @@ class RunRepository:
                 """INSERT INTO company(id, run_id, component_id, name, is_public, ticker,
                    hq_country, market_share_pct, market_share_bucket, single_source,
                    moat_types, switching_costs, customer_concentration, demand_signal,
-                   valuation_usd, notes)
-                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                   valuation_usd, notes, extras_json)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     cid,
                     run_id,
@@ -151,6 +153,7 @@ class RunRepository:
                     demand_signal,
                     valuation_usd,
                     notes,
+                    json.dumps(extras) if extras else None,
                 ),
             )
         return cid
@@ -360,6 +363,16 @@ def _row_to_company(
             moat_types = json.loads(r["moat_types"])
         except json.JSONDecodeError:
             moat_types = []
+    extras = CompanyExtras()
+    try:
+        extras_raw = r["extras_json"]
+    except (IndexError, KeyError):
+        extras_raw = None
+    if extras_raw:
+        try:
+            extras = CompanyExtras.model_validate(json.loads(extras_raw))
+        except (json.JSONDecodeError, Exception):
+            extras = CompanyExtras()
     return CompanyRow(
         id=r["id"],
         run_id=r["run_id"],
@@ -377,6 +390,7 @@ def _row_to_company(
         demand_signal=r["demand_signal"],
         valuation_usd=r["valuation_usd"],
         notes=r["notes"],
+        extras=extras,
         evidence=list(evidence),
         score=score,
     )

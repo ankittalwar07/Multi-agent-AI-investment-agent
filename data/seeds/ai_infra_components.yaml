@@ -8,6 +8,44 @@ description: |
   not silently drop seeded ones.
 
 components:
+  # --- Tier 0: Raw materials & utilities (the upstream supply chain) ---
+  - name: Copper
+    category: raw_materials
+    description: Refined copper for datacenter power distribution, busways, and grid buildout. AI capex is the swing factor for global copper demand.
+    incumbents: [Freeport-McMoRan, Southern Copper, BHP, Antofagasta]
+    notes: AI datacenter buildout adds 1-2 million tons of incremental copper demand by 2030.
+
+  - name: Rare Earths & Specialty Metals
+    category: raw_materials
+    description: Neodymium, gallium, germanium, palladium, and other specialty metals required for chip fabrication and motors.
+    incumbents: [MP Materials, Lynas, China Northern Rare Earth, Iluka]
+    notes: China controls >85% of refining capacity; Western diversification is a regulatory tailwind.
+
+  - name: Industrial Gases
+    category: raw_materials
+    description: Ultra-pure nitrogen, helium, neon, and specialty gases consumed during semiconductor fabrication.
+    incumbents: [Linde, Air Products, Air Liquide, Taiyo Nippon Sanso]
+    notes: Long-term contracts; high barriers to entry; oligopolistic structure.
+
+  - name: Specialty Semiconductor Chemicals
+    category: raw_materials
+    description: Photoresists, CMP slurries, wet chemicals, and high-purity silicon wafers for chip fabs.
+    incumbents: [Shin-Etsu Chemical, JSR Corp, Tokyo Ohka Kogyo, Entegris, Versum]
+    notes: Photoresist supply is concentrated in Japan; export controls add geopolitical risk.
+
+  - name: Chip Substrates (ABF)
+    category: raw_materials
+    description: Ajinomoto Build-up Film (ABF) substrates that connect AI accelerator dies to PCBs.
+    incumbents: [Ibiden, Unimicron, Shinko Electric, Nan Ya PCB]
+    notes: Sole-source bottleneck on ABF chemistry (Ajinomoto); package substrate capacity is tight.
+
+  - name: Datacenter Water Infrastructure
+    category: facilities
+    description: Cooling water systems, reuse, and treatment infrastructure for hyperscale facilities.
+    incumbents: [Xylem, Pentair, Evoqua, Ecolab]
+    notes: Water scarcity is becoming a siting constraint; closed-loop systems are a regulatory tailwind.
+
+  # --- Tier 1: Semiconductor capex & manufacturing ---
   - name: EUV Lithography
     category: semiconductor_capex
     description: Extreme-ultraviolet lithography scanners required for <=5nm logic and advanced DRAM.
@@ -20,6 +58,13 @@ components:
     incumbents: [TSMC, Samsung Foundry, Intel Foundry]
     notes: TSMC has >90% share at the leading edge.
 
+  - name: Advanced Packaging (CoWoS / SoIC)
+    category: semiconductor_manufacturing
+    description: 2.5D / 3D packaging required to bond logic dies to HBM stacks.
+    incumbents: [TSMC, ASE, Amkor]
+    notes: TSMC CoWoS capacity is the binding constraint on NVIDIA shipments.
+
+  # --- Tier 2: Silicon ---
   - name: AI Accelerator Silicon
     category: compute_silicon
     description: GPUs and custom ASICs that train and serve frontier models.
@@ -31,12 +76,6 @@ components:
     incumbents: [SK Hynix, Samsung, Micron]
     notes: Three-supplier oligopoly; SK Hynix leads HBM3E.
 
-  - name: Advanced Packaging (CoWoS / SoIC)
-    category: semiconductor_manufacturing
-    description: 2.5D / 3D packaging required to bond logic dies to HBM stacks.
-    incumbents: [TSMC, ASE, Amkor]
-    notes: TSMC CoWoS capacity is the binding constraint on NVIDIA shipments.
-
   - name: Datacenter Networking Silicon
     category: networking
     description: Switch ASICs and SmartNICs for AI clusters.
@@ -47,11 +86,23 @@ components:
     description: 800G/1.6T optical modules and co-packaged optics.
     incumbents: [Coherent, Lumentum, Innolight, Eoptolink]
 
+  - name: Inference Hardware Startups
+    category: compute_silicon
+    description: Non-NVIDIA accelerators optimized for inference.
+    incumbents: [Groq, Cerebras, SambaNova, Tenstorrent]
+
+  - name: Edge / On-Device Inference
+    category: compute_silicon
+    description: Mobile and embedded NPUs for on-device model inference.
+    incumbents: [Qualcomm, Apple Neural Engine, Hailo, MediaTek]
+
+  # --- Tier 3: Datacenter facilities ---
   - name: Datacenter Power & Cooling
     category: facilities
     description: PDUs, busways, liquid cooling, immersion cooling for high-density AI racks.
     incumbents: [Vertiv, Schneider Electric, Eaton]
 
+  # --- Tier 4: Compute platforms ---
   - name: Hyperscale Cloud
     category: compute_platform
     description: Public cloud infrastructure offering large-scale GPU clusters.
@@ -62,16 +113,13 @@ components:
     description: Specialty GPU-rental clouds.
     incumbents: [CoreWeave, Lambda, Crusoe, Nebius]
 
+  # --- Tier 5: Models ---
   - name: Foundation Model Labs
     category: model_layer
     description: Labs training frontier general-purpose models.
     incumbents: [OpenAI, Anthropic, Google DeepMind, Meta AI, xAI, Mistral]
 
-  - name: Inference Hardware Startups
-    category: compute_silicon
-    description: Non-NVIDIA accelerators optimized for inference.
-    incumbents: [Groq, Cerebras, SambaNova, Tenstorrent]
-
+  # --- Tier 6: Data & Tooling ---
   - name: Vector Databases
     category: data_layer
     description: Embedding stores for retrieval-augmented generation.
@@ -96,8 +144,3 @@ components:
     category: data_layer
     description: Generated training data for model pretraining and fine-tuning.
     incumbents: [Gretel, Mostly AI, Tonic]
-
-  - name: Edge / On-Device Inference
-    category: compute_silicon
-    description: Mobile and embedded NPUs for on-device model inference.
-    incumbents: [Qualcomm, Apple Neural Engine, Hailo, MediaTek]

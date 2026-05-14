@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS company (
     customer_concentration TEXT,
     demand_signal TEXT,
     valuation_usd REAL,
-    notes TEXT
+    notes TEXT,
+    extras_json TEXT
 );
 CREATE INDEX IF NOT EXISTS ix_company_run ON company(run_id);
 CREATE INDEX IF NOT EXISTS ix_company_component ON company(component_id);

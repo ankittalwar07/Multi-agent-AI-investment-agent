@@ -1,12 +1,4 @@
-"""Shared dashboard helpers: arbitrage scoring + plotly chart builders.
-
-The arbitrage angle: a savvy investor wants opportunities where the moat is
-strong relative to how priced-in / accessible the company is. We surface:
-  - composite moat score (already computed by the rubric)
-  - "arbitrage tilt" — heuristic that boosts privates, capacity-constrained
-    incumbents, and high-demand single-source positions, and penalizes
-    weak-moat / overcrowded names
-"""
+"""Dashboard helpers: investor-grade tables, badges, and plotly charts."""
 from __future__ import annotations
 
 from typing import Iterable
@@ -18,42 +10,96 @@ import plotly.graph_objects as go
 from investment_agent.storage.models import CompanyRow, RunView
 
 
-# ----- scoring -----
+# ---------------------- recommendation logic ----------------------
 
-def arbitrage_tilt(c: CompanyRow) -> float:
-    """Bounded 0–30 heuristic that rewards mispricing-prone positions.
+REC_ORDER = ["STRONG_BUY", "BUY", "HOLD", "SELL", "STRONG_SELL", "N/A", "SEE_TSM"]
+REC_COLORS = {
+    "STRONG_BUY": "#16a34a",
+    "BUY": "#22c55e",
+    "HOLD": "#eab308",
+    "SELL": "#f97316",
+    "STRONG_SELL": "#dc2626",
+    "N/A": "#64748b",
+    "SEE_TSM": "#64748b",
+}
+REC_LABELS = {
+    "STRONG_BUY": "STRONG BUY",
+    "BUY": "BUY",
+    "HOLD": "HOLD",
+    "SELL": "SELL",
+    "STRONG_SELL": "STRONG SELL",
+    "N/A": "—",
+    "SEE_TSM": "see parent",
+}
 
-    +10 if private (harder to access -> potential premium for those who can get in)
-    +10 if demand signal mentions "shortage", "backlog", "exponential", "accelerating"
-    +5  if customer concentration is high (acquisition-target dynamics)
-    +5  if sole-source or top share-bucket
-    """
-    pts = 0.0
-    if c.is_public is False:
-        pts += 10
-    demand = (c.demand_signal or "").lower()
-    if any(w in demand for w in ("shortage", "backlog", "exponential", "accelerating", "sold out")):
-        pts += 10
-    cc = (c.customer_concentration or "").lower()
-    if any(w in cc for w in (">", "concentration", "heavy", "majority")):
-        pts += 5
-    if c.single_source or c.market_share_bucket in (">75", "sole"):
-        pts += 5
-    return min(pts, 30)
+STRUCTURE_COLORS = {
+    "monopoly": "#dc2626",
+    "duopoly": "#ea580c",
+    "oligopoly": "#eab308",
+    "fragmented": "#0ea5e9",
+}
 
 
-def composite_with_tilt(c: CompanyRow) -> float:
-    base = c.score.composite if (c.score and c.score.composite is not None) else 0
-    return base + arbitrage_tilt(c)
+def rec_badge(rec: str | None) -> str:
+    """Markdown-safe colored pill for a recommendation."""
+    if not rec:
+        return "—"
+    color = REC_COLORS.get(rec, "#64748b")
+    label = REC_LABELS.get(rec, rec)
+    return f'<span style="background:{color};color:white;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;">{label}</span>'
 
+
+def structure_badge(s: str | None) -> str:
+    if not s:
+        return "—"
+    color = STRUCTURE_COLORS.get(s.lower(), "#475569")
+    return f'<span style="background:{color};color:white;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;text-transform:uppercase;">{s}</span>'
+
+
+def fmt_pct(v) -> str:
+    if v is None or pd.isna(v):
+        return "—"
+    return f"{v * 100:+.1f}%" if abs(v) < 5 else f"{v:+.1f}%"
+
+
+def fmt_money(v) -> str:
+    if v is None or pd.isna(v):
+        return "—"
+    if v >= 1e12:
+        return f"${v/1e12:.2f}T"
+    if v >= 1e9:
+        return f"${v/1e9:.1f}B"
+    if v >= 1e6:
+        return f"${v/1e6:.0f}M"
+    return f"${v:,.0f}"
+
+
+def fmt_ratio(v, digits=1) -> str:
+    if v is None or pd.isna(v):
+        return "—"
+    return f"{v:.{digits}f}x" if v >= 0 else "—"
+
+
+def fmt_price(v) -> str:
+    if v is None or pd.isna(v):
+        return "—"
+    return f"${v:,.2f}"
+
+
+# ---------------------- DataFrame builders ----------------------
 
 def view_to_dataframe(view: RunView) -> pd.DataFrame:
-    """Flatten a RunView into a pandas DataFrame for charting."""
+    """Flatten the run into a tabular DataFrame for charts/tables.
+
+    Pulls financials + recommendation out of the CompanyExtras into top-level columns.
+    """
     comp_by_id = {c.id: c.name for c in view.components}
     rows = []
     for c in view.companies:
+        e = c.extras
         rows.append(
             {
+                "id": c.id,
                 "name": c.name,
                 "component": comp_by_id.get(c.component_id, "?"),
                 "is_public": c.is_public,
@@ -68,142 +114,264 @@ def view_to_dataframe(view: RunView) -> pd.DataFrame:
                 "demand_signal": c.demand_signal,
                 "valuation_usd": c.valuation_usd,
                 "composite": c.score.composite if c.score and c.score.composite is not None else 0,
-                "arb_tilt": arbitrage_tilt(c),
-                "arb_score": composite_with_tilt(c),
                 "evidence_count": len(c.evidence),
+                # extras
+                "structure": e.structure,
+                "supply_status": e.supply_status,
+                "stock_price": e.stock_price,
+                "market_cap_usd": e.market_cap_usd,
+                "pe_trailing": e.pe_trailing,
+                "pe_forward": e.pe_forward,
+                "peg": e.peg,
+                "ev_ebitda": e.ev_ebitda,
+                "ev_sales": e.ev_sales,
+                "revenue_growth_ttm": e.revenue_growth_ttm,
+                "revenue_growth_fwd": e.revenue_growth_fwd,
+                "operating_margin": e.operating_margin,
+                "fcf_yield": e.fcf_yield,
+                "dividend_yield": e.dividend_yield,
+                "beta": e.beta,
+                "week52_high": e.week52_high,
+                "week52_low": e.week52_low,
+                "analyst_buy": e.analyst_buy,
+                "analyst_hold": e.analyst_hold,
+                "analyst_sell": e.analyst_sell,
+                "price_target_low": e.price_target_low,
+                "price_target_avg": e.price_target_avg,
+                "price_target_high": e.price_target_high,
+                "recommendation": e.recommendation,
+                "conviction": e.conviction,
+                "expected_return_12m": e.expected_return_12m,
+                "bull_target": e.bull_target,
+                "base_target": e.base_target,
+                "bear_target": e.bear_target,
+                "thesis_summary": e.thesis_summary,
             }
         )
     return pd.DataFrame(rows)
 
 
-# ----- charts -----
-
-def chart_moat_heatmap(df: pd.DataFrame) -> go.Figure:
-    """For each (component, share bucket) cell, show the # of companies."""
-    bucket_order = ["<10", "10-25", "25-50", "50-75", ">75", "sole"]
-    pivot = (
-        df.assign(market_share_bucket=df["market_share_bucket"].fillna("<10"))
-        .groupby(["component", "market_share_bucket"])
-        .size()
-        .unstack(fill_value=0)
-        .reindex(columns=bucket_order, fill_value=0)
-    )
-    fig = px.imshow(
-        pivot,
-        labels=dict(x="Market share bucket", y="Component", color="Companies"),
-        aspect="auto",
-        color_continuous_scale="Blues",
-        text_auto=True,
-    )
-    fig.update_layout(margin=dict(l=0, r=0, t=30, b=0), height=520, coloraxis_showscale=False)
-    return fig
+def get_top_picks(df: pd.DataFrame, n: int = 5) -> pd.DataFrame:
+    """Filter to actionable BUY/STRONG_BUY only, sort by expected return."""
+    actionable = df[df["recommendation"].isin(["STRONG_BUY", "BUY"])].copy()
+    if actionable.empty:
+        return df.head(n)
+    # Prioritize STRONG_BUY + HIGH conviction + expected return
+    rec_priority = {"STRONG_BUY": 2, "BUY": 1}
+    conv_priority = {"HIGH": 2, "MEDIUM": 1, "LOW": 0}
+    actionable["_rec_p"] = actionable["recommendation"].map(rec_priority).fillna(0)
+    actionable["_conv_p"] = actionable["conviction"].map(conv_priority).fillna(0)
+    actionable["_score"] = (
+        actionable["_rec_p"] * 2 + actionable["_conv_p"]
+    ) * 10 + actionable["expected_return_12m"].fillna(0) * 100
+    return actionable.sort_values("_score", ascending=False).head(n)
 
 
-def chart_demand_vs_share(df: pd.DataFrame) -> go.Figure:
-    """Bubble: x=market_share_pct, y=composite, size=valuation, color=public/private."""
-    plot_df = df.copy()
-    plot_df["valuation_b"] = (plot_df["valuation_usd"].fillna(500_000_000) / 1e9).clip(lower=0.3, upper=3500)
-    plot_df["status"] = plot_df["is_public"].map({True: "Public", False: "Private"}).fillna("Unknown")
-    fig = px.scatter(
-        plot_df,
-        x="market_share_pct",
-        y="composite",
-        size="valuation_b",
-        color="status",
-        hover_name="name",
-        hover_data={
-            "component": True,
-            "ticker": True,
-            "single_source": True,
-            "demand_signal": True,
-            "valuation_b": ":.1f",
-            "market_share_pct": ":.0f",
-            "composite": ":.0f",
-        },
-        size_max=55,
-        color_discrete_map={"Public": "#2563eb", "Private": "#dc2626", "Unknown": "#6b7280"},
-        labels={"market_share_pct": "Market share (%)", "composite": "Moat composite (0-100)"},
-    )
-    fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=520, legend_title="")
-    return fig
+# ---------------------- Charts ----------------------
 
-
-def chart_top_arbitrage(df: pd.DataFrame, top_n: int = 15) -> go.Figure:
-    """Horizontal bar of top arbitrage-tilted companies."""
-    top = df.sort_values("arb_score", ascending=False).head(top_n).iloc[::-1]
-    top["label"] = top["name"] + " (" + top["component"].str.slice(0, 22) + ")"
+def chart_recommendation_distribution(df: pd.DataFrame) -> go.Figure:
+    counts = df[df["recommendation"].isin(REC_ORDER)]["recommendation"].value_counts()
+    ordered = [r for r in REC_ORDER if r in counts.index]
+    values = [counts[r] for r in ordered]
+    colors = [REC_COLORS.get(r, "#64748b") for r in ordered]
+    labels = [REC_LABELS.get(r, r) for r in ordered]
     fig = go.Figure(
         go.Bar(
-            x=top["arb_score"],
-            y=top["label"],
-            orientation="h",
-            marker=dict(
-                color=top["arb_score"],
-                colorscale="Viridis",
-                showscale=False,
-            ),
-            text=top["arb_score"].round(0),
-            textposition="outside",
-            hovertemplate=(
-                "<b>%{y}</b><br>"
-                "arb score=%{x:.0f}<br>"
-                "<extra></extra>"
-            ),
+            x=labels, y=values, marker=dict(color=colors),
+            text=values, textposition="outside",
         )
     )
     fig.update_layout(
         margin=dict(l=0, r=0, t=10, b=0),
-        height=max(380, 28 * len(top) + 60),
-        xaxis_title="Arbitrage score (moat + tilt, 0-130)",
+        height=260,
+        xaxis_title="",
+        yaxis_title="# companies",
+        showlegend=False,
+    )
+    return fig
+
+
+def chart_analyst_consensus(buy: int | None, hold: int | None, sell: int | None) -> go.Figure:
+    buy = buy or 0
+    hold = hold or 0
+    sell = sell or 0
+    fig = go.Figure(
+        go.Bar(
+            x=["Buy", "Hold", "Sell"],
+            y=[buy, hold, sell],
+            marker=dict(color=["#16a34a", "#eab308", "#dc2626"]),
+            text=[buy, hold, sell],
+            textposition="outside",
+        )
+    )
+    fig.update_layout(
+        margin=dict(l=0, r=0, t=10, b=0),
+        height=240,
+        xaxis_title="",
+        yaxis_title="# analysts",
+        showlegend=False,
+    )
+    return fig
+
+
+def chart_price_targets(price: float | None, bear: float | None, base: float | None, bull: float | None) -> go.Figure:
+    """Horizontal range chart for bear/base/bull price targets."""
+    if not all(v is not None and v > 0 for v in [price, bear, base, bull]):
+        return go.Figure()
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=[bull - bear], y=["Targets"], base=[bear], orientation="h",
+        marker=dict(color="rgba(34, 211, 238, 0.18)"), showlegend=False,
+        hoverinfo="skip",
+    ))
+    for label, val, color in [
+        ("Bear", bear, "#dc2626"),
+        ("Base", base, "#22d3ee"),
+        ("Bull", bull, "#16a34a"),
+    ]:
+        fig.add_trace(go.Scatter(
+            x=[val], y=["Targets"], mode="markers+text",
+            marker=dict(size=18, color=color, line=dict(color="white", width=1.5)),
+            text=[f"{label}<br>${val:,.0f}"], textposition="top center",
+            showlegend=False, hoverinfo="text",
+            hovertext=f"{label}: ${val:,.2f}",
+        ))
+    fig.add_trace(go.Scatter(
+        x=[price], y=["Targets"], mode="markers+text",
+        marker=dict(size=22, color="#0b1220", symbol="line-ns",
+                    line=dict(color="white", width=3)),
+        text=[f"Now<br>${price:,.0f}"], textposition="bottom center",
+        showlegend=False,
+    ))
+    fig.update_layout(
+        margin=dict(l=0, r=0, t=40, b=10),
+        height=200,
+        xaxis_title="$ per share",
+        yaxis=dict(visible=False),
+        showlegend=False,
+    )
+    return fig
+
+
+def chart_market_structure(df: pd.DataFrame) -> go.Figure:
+    """Pie chart of market structures across components (unique per component)."""
+    by_comp = df.dropna(subset=["structure"]).drop_duplicates(subset=["component"])
+    counts = by_comp["structure"].value_counts()
+    if counts.empty:
+        return go.Figure()
+    fig = go.Figure(
+        go.Pie(
+            labels=counts.index,
+            values=counts.values,
+            marker=dict(colors=[STRUCTURE_COLORS.get(s.lower(), "#475569") for s in counts.index]),
+            hole=0.55,
+            textinfo="label+percent",
+        )
+    )
+    fig.update_layout(
+        margin=dict(l=0, r=0, t=10, b=0),
+        height=320,
+        showlegend=False,
+    )
+    return fig
+
+
+def chart_top_picks_bar(df: pd.DataFrame, n: int = 10) -> go.Figure:
+    top = get_top_picks(df, n=n).iloc[::-1]
+    top["label"] = top["name"] + " · " + top["ticker"].fillna("—")
+    top["ret_pct"] = top["expected_return_12m"].fillna(0) * 100
+    fig = go.Figure(
+        go.Bar(
+            x=top["ret_pct"], y=top["label"], orientation="h",
+            marker=dict(
+                color=[REC_COLORS.get(r, "#64748b") for r in top["recommendation"]],
+            ),
+            text=[f"+{v:.0f}%" for v in top["ret_pct"]],
+            textposition="outside",
+            hovertemplate="<b>%{y}</b><br>Expected return: %{x:.1f}%<br><extra></extra>",
+        )
+    )
+    fig.update_layout(
+        margin=dict(l=0, r=20, t=10, b=0),
+        height=max(360, 36 * len(top) + 60),
+        xaxis_title="12-month expected return (%)",
         yaxis_title="",
     )
     return fig
 
 
-def chart_component_concentration(df: pd.DataFrame) -> go.Figure:
-    """For each component, a stacked bar of share by company."""
-    plot_df = df.copy()
-    plot_df["share"] = plot_df["market_share_pct"].fillna(0)
-    fig = px.bar(
-        plot_df,
-        x="component",
-        y="share",
-        color="name",
-        labels={"share": "Market share (%)"},
-        hover_data={"composite": ":.0f", "single_source": True},
+def chart_share_pie(df_component: pd.DataFrame, component_name: str) -> go.Figure:
+    pie_df = df_component.copy()
+    pie_df["share"] = pie_df["market_share_pct"].fillna(0)
+    pie_df = pie_df[pie_df["share"] > 0]
+    if pie_df.empty:
+        return go.Figure()
+    others_share = max(0, 100 - pie_df["share"].sum())
+    if others_share > 1:
+        pie_df = pd.concat([pie_df, pd.DataFrame([{"name": "Others / unallocated", "share": others_share}])], ignore_index=True)
+    fig = px.pie(
+        pie_df, names="name", values="share", hole=0.45,
+        color_discrete_sequence=px.colors.sequential.Teal_r,
     )
-    fig.update_layout(
-        margin=dict(l=0, r=0, t=10, b=80),
-        height=520,
-        legend=dict(orientation="v", yanchor="top", y=1.0, xanchor="left", x=1.02),
-        xaxis_tickangle=-30,
-    )
-    return fig
-
-
-def chart_score_distribution(df: pd.DataFrame) -> go.Figure:
-    """Histogram of composite scores."""
-    fig = px.histogram(df, x="composite", nbins=20, color_discrete_sequence=["#2563eb"])
+    fig.update_traces(textposition="inside", textinfo="label+percent")
     fig.update_layout(
         margin=dict(l=0, r=0, t=10, b=0),
-        height=320,
-        xaxis_title="Composite moat score",
-        yaxis_title="# companies",
+        height=340,
+        title=f"Share — {component_name}",
+        showlegend=False,
     )
     return fig
 
 
-def chart_public_vs_private_treemap(df: pd.DataFrame) -> go.Figure:
-    """Treemap: component -> company, colored by composite."""
-    plot_df = df.copy()
-    plot_df["status"] = plot_df["is_public"].map({True: "Public", False: "Private"}).fillna("Unknown")
-    fig = px.treemap(
-        plot_df,
-        path=["status", "component", "name"],
-        values=plot_df["composite"].clip(lower=1),
-        color="composite",
-        color_continuous_scale="Viridis",
-        hover_data={"single_source": True, "ticker": True},
+def chart_demand_supply(df_component: pd.DataFrame, component_name: str) -> go.Figure:
+    """A schematic demand/supply chart (illustrative).
+
+    Demand line trends up based on the strength of demand signals; supply line
+    plateaus where supply_status indicates 'constrained'.
+    """
+    demands = df_component["demand_signal"].fillna("").str.lower()
+    strong = demands.str.contains("exponential|accelerating|shortage|backlog|sold out").sum()
+    growing = demands.str.contains(r"strong|growing|\+", regex=True).sum()
+    base_growth = 0.10 + min(strong * 0.04 + growing * 0.02, 0.35)
+    constrained = (df_component["supply_status"].fillna("") == "constrained").any()
+    years = ["2024", "2025", "2026", "2027", "2028"]
+    demand_idx = [100 * (1 + base_growth) ** i for i in range(len(years))]
+    if constrained:
+        supply_idx = [100, 100 * (1 + base_growth * 0.6), 100 * (1 + base_growth * 0.95), 100 * (1 + base_growth * 1.1), 100 * (1 + base_growth * 1.25)]
+    else:
+        supply_idx = [100 * (1 + base_growth * 0.95) ** i for i in range(len(years))]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=years, y=demand_idx, name="Demand index",
+                              line=dict(color="#22d3ee", width=3), mode="lines+markers"))
+    fig.add_trace(go.Scatter(x=years, y=supply_idx, name="Supply index",
+                              line=dict(color="#f97316", width=3, dash="dash"), mode="lines+markers"))
+    if constrained:
+        fig.add_annotation(
+            x=years[-1], y=demand_idx[-1], text="DEMAND > SUPPLY",
+            showarrow=True, arrowhead=2, ax=-60, ay=-30,
+            font=dict(color="#dc2626", size=12, family="Arial Black"),
+        )
+    fig.update_layout(
+        margin=dict(l=0, r=0, t=30, b=0),
+        height=300,
+        title=f"Demand vs supply (illustrative) — {component_name}",
+        yaxis_title="Index (2024 = 100)",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
-    fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=620)
+    return fig
+
+
+def chart_treemap_by_recommendation(df: pd.DataFrame) -> go.Figure:
+    plot_df = df.copy()
+    plot_df["rec_label"] = plot_df["recommendation"].map(REC_LABELS).fillna("—")
+    plot_df["mcap_b"] = (plot_df["market_cap_usd"].fillna(plot_df["valuation_usd"].fillna(1e8)) / 1e9).clip(lower=0.5, upper=4000)
+    fig = px.treemap(
+        plot_df, path=["rec_label", "component", "name"],
+        values="mcap_b",
+        color="expected_return_12m",
+        color_continuous_scale="RdYlGn",
+        color_continuous_midpoint=0.10,
+        hover_data={"ticker": True, "composite": ":.0f"},
+    )
+    fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=540)
     return fig

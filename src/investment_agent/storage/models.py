@@ -53,6 +53,56 @@ class ScoreRow(BaseModel):
     rationale: str | None = None
 
 
+class CompanyExtras(BaseModel):
+    """Investor-grade financials, analyst consensus, and our recommendation.
+
+    All fields optional — real LLM runs may not populate everything.
+    """
+    # Market structure
+    structure: str | None = None  # monopoly | duopoly | oligopoly | fragmented
+    supply_status: str | None = None  # constrained | balanced | oversupply
+
+    # Stock / valuation (public companies only)
+    stock_price: float | None = None
+    currency: str = "USD"
+    market_cap_usd: float | None = None
+    pe_trailing: float | None = None
+    pe_forward: float | None = None
+    peg: float | None = None
+    ev_ebitda: float | None = None
+    ev_sales: float | None = None
+    revenue_growth_ttm: float | None = None
+    revenue_growth_fwd: float | None = None
+    operating_margin: float | None = None
+    fcf_yield: float | None = None
+    dividend_yield: float | None = None
+    beta: float | None = None
+    week52_high: float | None = None
+    week52_low: float | None = None
+
+    # Analyst consensus
+    analyst_buy: int | None = None
+    analyst_hold: int | None = None
+    analyst_sell: int | None = None
+    price_target_low: float | None = None
+    price_target_avg: float | None = None
+    price_target_high: float | None = None
+
+    # Our recommendation
+    recommendation: str | None = None  # STRONG_BUY | BUY | HOLD | SELL | STRONG_SELL
+    conviction: str | None = None  # HIGH | MEDIUM | LOW
+    expected_return_12m: float | None = None  # e.g. 0.25 = +25%
+    bull_target: float | None = None
+    base_target: float | None = None
+    bear_target: float | None = None
+
+    # Narrative
+    thesis_summary: str | None = None
+    thesis_points: list[str] = Field(default_factory=list)
+    risks: list[str] = Field(default_factory=list)
+    catalysts: list[str] = Field(default_factory=list)
+
+
 class CompanyRow(BaseModel):
     id: str
     run_id: str
@@ -70,6 +120,7 @@ class CompanyRow(BaseModel):
     demand_signal: str | None = None
     valuation_usd: float | None = None
     notes: str | None = None
+    extras: CompanyExtras = Field(default_factory=CompanyExtras)
     score: ScoreRow | None = None
     evidence: list[EvidenceRow] = Field(default_factory=list)
 
