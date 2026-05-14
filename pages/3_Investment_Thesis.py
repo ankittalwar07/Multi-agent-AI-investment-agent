@@ -19,8 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
-if str(ROOT / "app") not in sys.path:
-    sys.path.insert(0, str(ROOT / "app"))
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from dashboard_utils import (  # noqa: E402
     chart_analyst_consensus, chart_price_targets,
