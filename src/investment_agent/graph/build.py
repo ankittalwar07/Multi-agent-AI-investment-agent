@@ -20,7 +20,9 @@ from ..agents.decomposer import Decomposer
 from ..agents.synthesizer import Synthesizer
 from ..config import Settings
 from ..council.engine import company_to_view, council_summary, run_council
+from ..intelligence import run_intelligence
 from ..llm import LLMProvider
+from ..llm.mock_data import INTELLIGENCE as DEMO_INTELLIGENCE
 from ..scoring.moat_rubric import RUBRIC_VERSION
 from ..storage.repository import RunRepository
 from ..tools.base import Tool
@@ -233,6 +235,34 @@ class Pipeline:
                 rationale=s.score.rationale,
             )
         self._emit(repo, rid, "info", "analyzer", f"scored {len(scored)} companies")
+
+        # ----- Intelligence Agent -----
+        # Fetches gov investments, congressional trades, policy flags etc.
+        # In Demo mode, reads from the INTELLIGENCE patch; in live runs the
+        # LLM provider could call USAspending / Senate EFD / SEC EDGAR via
+        # web tools to populate the same shape.
+        for s in scored:
+            cid = company_ids.get((s.component_name, s.finding.name))
+            if not cid:
+                continue
+            signals, summary = run_intelligence(
+                s.finding.name, s.finding.ticker,
+                demo_data=DEMO_INTELLIGENCE if opts.mock else None,
+            )
+            if signals or summary.total_signals:
+                repo.update_company_extras(
+                    cid,
+                    {
+                        "intelligence_signals": [sig.model_dump(mode="json") for sig in signals],
+                        "intelligence_summary": summary.model_dump(),
+                    },
+                )
+                # Also patch the finding's extras dict so the council (next step)
+                # can use intelligence signals in its rubrics.
+                if isinstance(s.finding.extras, dict):
+                    s.finding.extras["intelligence_summary"] = summary.model_dump()
+        self._emit(repo, rid, "info", "intelligence",
+                   f"intelligence agent reviewed {len(scored)} companies")
 
         # ----- Investor Council -----
         for s in scored:

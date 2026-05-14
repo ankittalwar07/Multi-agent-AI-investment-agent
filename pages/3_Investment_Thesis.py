@@ -309,6 +309,101 @@ if flags2:
 st.markdown("---")
 
 
+# ---------------- INTELLIGENCE SIGNALS (Pass 4) ----------------
+intel_summary = extras.intelligence_summary or {}
+intel_signals = extras.intelligence_signals or []
+
+if intel_summary.get("total_signals", 0) > 0 or intel_signals:
+    st.markdown("### :detective: Intelligence signals")
+    st.caption(
+        "Non-financial signals that the market often misprices — US government "
+        "investments, federal contracts, congressional STOCK Act disclosures, "
+        "foreign sovereign activity, and policy headwinds."
+    )
+
+    is1, is2, is3, is4, is5 = st.columns(5)
+    score = intel_summary.get("intelligence_score", 0) or 0
+    is1.metric(
+        "Intelligence score", f"{score:+.0f}",
+        help="Composite of all intelligence signals, -100 to +100. Positive = policy/political tailwinds; negative = Entity List / antitrust / sovereign headwinds.",
+    )
+    is2.metric(
+        "US gov $", fmt_money(intel_summary.get("us_gov_total_usd", 0)),
+        help="Total US gov direct investment (CHIPS Act, DPA, DoE LPO).",
+    )
+    is3.metric(
+        "Federal contracts $", fmt_money(intel_summary.get("federal_contract_total_usd", 0)),
+        help="Recent federal contract awards (DoD, DoE, IC, GSA).",
+    )
+    pb = intel_summary.get("politicians_buying_count", 0)
+    ps = intel_summary.get("politicians_selling_count", 0)
+    is4.metric("Politicians buy / sell", f"{pb} / {ps}",
+                help="Count of distinct congressional STOCK Act disclosures (Senate EFD + House Clerk).")
+    is5.metric(
+        "Bull / Bear signals",
+        f"{intel_summary.get('bullish_count', 0)} / {intel_summary.get('bearish_count', 0)}",
+    )
+
+    # Highlight policy tailwinds and headwinds
+    if intel_summary.get("policy_tailwinds"):
+        st.success(
+            ":white_check_mark: **Policy tailwinds:** " +
+            " · ".join(intel_summary["policy_tailwinds"][:3])
+        )
+    if intel_summary.get("policy_headwinds"):
+        st.error(
+            ":warning: **Policy headwinds:** " +
+            " · ".join(intel_summary["policy_headwinds"][:3])
+        )
+    if intel_summary.get("notable_politicians"):
+        st.info(
+            ":bust_in_silhouette: **Notable congressional activity:** " +
+            ", ".join(intel_summary["notable_politicians"][:4])
+        )
+
+    with st.expander(f":mag: Full intelligence signal list ({len(intel_signals)} records)"):
+        if not intel_signals:
+            st.caption("No raw signals persisted.")
+        for sig in intel_signals:
+            cat = sig.get("category", "")
+            cat_emoji = {
+                "us_gov_investment": ":flag-us:",
+                "federal_contract": ":scroll:",
+                "congressional_trade": ":bust_in_silhouette:",
+                "foreign_gov_activity": ":globe_with_meridians:",
+                "policy_headwind": ":warning:",
+                "form4_insider": ":busts_in_silhouette:",
+            }.get(cat, ":pushpin:")
+            direction_color = {"bullish": "#16a34a", "bearish": "#dc2626", "neutral": "#64748b"}.get(
+                sig.get("direction", "neutral"), "#64748b",
+            )
+            amt = sig.get("amount_usd")
+            amt_str = f" · **{fmt_money(amt)}**" if amt else ""
+            with st.container(border=True):
+                st.markdown(
+                    f"{cat_emoji} **{sig.get('headline')}**"
+                    f" <span style='background:{direction_color};color:white;"
+                    f"padding:2px 8px;border-radius:10px;font-size:11px;"
+                    f"margin-left:8px;'>{sig.get('direction','').upper()}</span>",
+                    unsafe_allow_html=True,
+                )
+                meta_parts = []
+                if sig.get("counterparty"):
+                    meta_parts.append(f"_{sig['counterparty']}_")
+                if amt:
+                    meta_parts.append(fmt_money(amt))
+                if sig.get("source_name"):
+                    meta_parts.append(f"source: {sig['source_name']}")
+                if meta_parts:
+                    st.caption(" · ".join(meta_parts))
+                if sig.get("note"):
+                    st.write(sig["note"])
+                if sig.get("source_url"):
+                    st.markdown(f"[source]({sig['source_url']})")
+
+    st.markdown("---")
+
+
 # ---------------- SCENARIO & VALUATION (Pass 3) ----------------
 st.markdown("### :bar_chart: Scenario math & valuation")
 st.caption(

@@ -94,6 +94,52 @@ data/runs/              # per-run SQLite + JSON output
 tests/                  # unit + recorded-fixture tests + mock-mode smoke
 ```
 
+## Intelligence Agent — data sources
+
+The Intelligence Agent aggregates non-financial signals that the market often
+misprices: US government investments, federal contracts, congressional STOCK Act
+trades, foreign sovereign activity, policy headwinds, and SEC Form 4 cluster
+buys. In Demo mode signals come from a hand-crafted patch dict; in live runs
+the LLM provider populates them via the documented public sources.
+
+### Free (no API key)
+
+| Source | URL | What it provides |
+|---|---|---|
+| **USAspending.gov** | <https://api.usaspending.gov/api/v2/search/spending_by_award/> | All US federal contract awards + grants since 2008 |
+| **DoD Daily Contracts** | <https://www.defense.gov/News/Contracts/> | Defense contracts >$7.5M posted daily |
+| **Senate EFD** | <https://efdsearch.senate.gov/search/> | Senate Periodic Transaction Reports (STOCK Act) |
+| **House Clerk Disclosures** | <https://disclosures-clerk.house.gov/PublicDisclosure/FinancialDisclosure> | House financial disclosures |
+| **SEC EDGAR Form 4** | <https://www.sec.gov/cgi-bin/browse-edgar> | Corporate insider transactions |
+| **OpenInsider** | <http://openinsider.com/screener> | Form 4 aggregator with cluster-buy flags |
+| **BIS Entity List** | <https://www.bis.doc.gov/index.php/policy-guidance/lists-of-parties-of-concern/entity-list> | Export-control restrictions |
+| **DoC press releases** | <https://www.commerce.gov/news/press-releases> | CHIPS Act preliminary memoranda + definitive awards |
+| **Capitol Trades** | <https://www.capitoltrades.com/> | Front-end for STOCK Act disclosures |
+
+### Free with API key
+
+| Source | URL | Env var |
+|---|---|---|
+| **Quiver Quantitative** | <https://api.quiverquant.com/> | `QUIVER_API_KEY` (free tier: 10 req/day) |
+
+### Paid
+
+| Source | Why |
+|---|---|
+| **Bloomberg Terminal** | Best coverage of sovereign flows + China Big Fund |
+| **FactSet Government Edge** | Structured, back-tested gov contract + lobbying + congressional trade |
+
+### Live-run integration
+
+In Demo mode the agent reads from `INTELLIGENCE` in `src/investment_agent/llm/mock_data.py`.
+For live runs against Claude/Gemini, the LLM provider can call the existing
+`web_search` and `web_fetch` tools to populate the same `IntelligenceSignal`
+shape (defined in `src/investment_agent/intelligence/signals.py`). Quiver and
+SEC EDGAR responses parse directly into that shape.
+
+The status of each source (connected vs gated) is also viewable from
+`investment_agent.intelligence.sources.source_status()`.
+
 ## Data sources
 
 - **Web search** — DuckDuckGo (free, rate-limited).

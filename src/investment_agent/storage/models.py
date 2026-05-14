@@ -155,6 +155,10 @@ class CompanyExtras(BaseModel):
     council_verdicts: list[dict] = Field(default_factory=list)
     council_summary: dict = Field(default_factory=dict)
 
+    # Intelligence Agent (Pass 4) — gov flows, congressional trades, policy signals
+    intelligence_signals: list[dict] = Field(default_factory=list)
+    intelligence_summary: dict = Field(default_factory=dict)
+
 
 class CompanyRow(BaseModel):
     id: str

@@ -146,6 +146,9 @@ DF_COLUMNS = [
     "bull_probability", "base_probability", "bear_probability",
     "probability_weighted_return",
     "dcf_growth_y1_y5", "dcf_terminal_multiple", "dcf_wacc",
+    "intelligence_score", "us_gov_total_usd", "federal_contract_total_usd",
+    "politicians_buying_count", "politicians_net_value_usd",
+    "intelligence_bull_count", "intelligence_bear_count",
 ]
 
 
@@ -232,6 +235,14 @@ def view_to_dataframe(view: RunView) -> pd.DataFrame:
                 "dcf_growth_y1_y5": e.dcf_growth_y1_y5,
                 "dcf_terminal_multiple": e.dcf_terminal_multiple,
                 "dcf_wacc": e.dcf_wacc,
+                # Intelligence Agent (Pass 4)
+                "intelligence_score": (e.intelligence_summary or {}).get("intelligence_score"),
+                "us_gov_total_usd": (e.intelligence_summary or {}).get("us_gov_total_usd"),
+                "federal_contract_total_usd": (e.intelligence_summary or {}).get("federal_contract_total_usd"),
+                "politicians_buying_count": (e.intelligence_summary or {}).get("politicians_buying_count"),
+                "politicians_net_value_usd": (e.intelligence_summary or {}).get("politicians_net_value_usd"),
+                "intelligence_bull_count": (e.intelligence_summary or {}).get("bullish_count"),
+                "intelligence_bear_count": (e.intelligence_summary or {}).get("bearish_count"),
             }
         )
     if rows:

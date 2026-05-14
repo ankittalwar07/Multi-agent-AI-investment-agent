@@ -76,6 +76,12 @@ def _ai_pct(c): return c.get("ai_revenue_pct")
 def _insider(c): return c.get("insider_net_buying_6m_usd")
 def _short(c): return c.get("short_interest_pct")
 def _eps_rev(c): return c.get("eps_revisions_3m_pct")
+def _intel(c): return c.get("intelligence_summary") or {}
+def _intel_score(c): return (_intel(c) or {}).get("intelligence_score", 0) or 0
+def _gov_usd(c): return (_intel(c) or {}).get("us_gov_total_usd", 0) or 0
+def _pols_buy_count(c): return (_intel(c) or {}).get("politicians_buying_count", 0) or 0
+def _has_policy_headwind(c):
+    return bool((_intel(c) or {}).get("policy_headwinds"))
 
 
 # ---------------- Warren Buffett ----------------
@@ -420,6 +426,18 @@ def druck(c: CompanyView) -> dict:
         setup_strength -= 2
         reasoning.append(f"EPS revisions {eps_rev*100:+.0f}% — street is cutting; thesis is breaking.")
 
+    # Government / policy alignment — Druck cares about policy backing
+    gov_usd = _gov_usd(c)
+    if gov_usd >= 5e9:
+        setup_strength += 2
+        reasoning.append(f"US gov directly invested ${gov_usd/1e9:.1f}B — policy is the macro tailwind.")
+    elif gov_usd >= 5e8:
+        setup_strength += 1
+        reasoning.append(f"US gov investment ${gov_usd/1e9:.1f}B — meaningful policy alignment.")
+    if _has_policy_headwind(c):
+        setup_strength -= 1
+        reasoning.append("Active policy headwind (Entity List / export controls / antitrust) — limits position size.")
+
     # Druck won't bet on weak setups
     if setup_strength <= 0:
         return _v("PASS", "MEDIUM",
@@ -477,6 +495,12 @@ def wood(c: CompanyView) -> dict:
 
     if is_innovation: score += 2; reasoning.append(f"Operating in a frontier AI layer ({component}) — platform shift.")
     if moat >= 60: score += 1; reasoning.append(f"Strong moat ({moat:.0f}/100) anchors the bet.")
+
+    # Industrial-policy validation = ARK loves it
+    gov_usd = _gov_usd(c)
+    if gov_usd >= 1e9:
+        score += 1
+        reasoning.append(f"US industrial-policy backing (${gov_usd/1e9:.1f}B gov investment) — validates the platform thesis.")
 
     # Cathie embraces private high-growth
     if not _is_public(c) and rev_fwd >= 0.30:
@@ -537,6 +561,11 @@ def marks(c: CompanyView) -> dict:
     if rev_up >= 30 and rev_dn <= 4:
         euphoria_score += 1
         reasoning.append(f"{rev_up} street estimates raised vs {rev_dn} cut — consensus already revised up, no upside left.")
+    # Politically-crowded names = additional Marks concern
+    pols_buying = _pols_buy_count(c)
+    if pols_buying >= 2:
+        euphoria_score += 1
+        reasoning.append(f"{pols_buying} congressional 'tells' on the long side — this trade is in the public consciousness now.")
 
     # Quality consideration
     quality_ok = moat >= 60
@@ -733,6 +762,15 @@ def dalio(c: CompanyView) -> dict:
     if top1 is not None and top1 >= 0.40:
         geopolitical_risk += 1
         reasoning.append(f"Single-customer concentration {top1*100:.0f}% — too narrow a base for all-weather portfolio.")
+
+    # Intelligence overlay — explicit policy / sovereign signals
+    intel = _intel(c)
+    if intel.get("policy_headwinds"):
+        geopolitical_risk += 2
+        reasoning.append(f"Active policy headwinds: {intel['policy_headwinds'][0][:80]}.")
+    gov_usd = _gov_usd(c)
+    if gov_usd >= 5e9:
+        reasoning.append(f"Backed by ${gov_usd/1e9:.1f}B in US gov investment — all-weather support.")
 
     # All-weather scoring
     aw_score = 0

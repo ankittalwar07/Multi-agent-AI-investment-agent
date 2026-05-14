@@ -65,6 +65,7 @@ def company_to_view(
         "eps_revisions_3m_pct": e.get("eps_revisions_3m_pct") if isinstance(e, dict) else getattr(e, "eps_revisions_3m_pct", None),
         "analyst_revisions_up": e.get("analyst_revisions_up") if isinstance(e, dict) else getattr(e, "analyst_revisions_up", None),
         "analyst_revisions_down": e.get("analyst_revisions_down") if isinstance(e, dict) else getattr(e, "analyst_revisions_down", None),
+        "intelligence_summary": e.get("intelligence_summary") if isinstance(e, dict) else getattr(e, "intelligence_summary", None),
     }
 
 
