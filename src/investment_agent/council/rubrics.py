@@ -352,6 +352,241 @@ def wood(c: CompanyView) -> dict:
               concern="Cyclical disruption risk" if not is_innovation else "Capital intensity")
 
 
+# ---------------- Howard Marks ----------------
+
+def marks(c: CompanyView) -> dict:
+    """Cycle awareness + second-level thinking. The crowd matters as much as the company."""
+    reasoning: list[str] = []
+    pe_f = _pe_f(c)
+    pe_t = _pe_t(c)
+    moat = _moat(c)
+    rev_fwd = _rev_fwd(c) or 0
+    bucket = _bucket(c) or ""
+    structure = _structure(c)
+
+    # Marks cares about euphoria signals as much as fundamentals
+    euphoria_score = 0
+    if pe_t and pe_t > 35: euphoria_score += 2
+    if pe_f and pe_f > 30: euphoria_score += 2
+    if rev_fwd > 0.50: euphoria_score += 1  # very high growth often = priced perfection
+    if bucket == ">75" and structure in ("monopoly", "oligopoly"): euphoria_score += 1  # crowded long
+    if (c.get("analyst_buy") or 0) >= 30 and (c.get("analyst_sell") or 0) <= 1: euphoria_score += 1  # consensus love
+
+    # Quality consideration
+    quality_ok = moat >= 60
+
+    if euphoria_score >= 4:
+        return _v("AVOID", "HIGH",
+                  [
+                      f"Multiple euphoria signals stacked (P/E {pe_f or pe_t}, growth {rev_fwd*100:.0f}%, consensus love).",
+                      "Second-level question: when this many things are going right, what does the next surprise look like?",
+                      "Risk-adjusted, this is asymmetric to the downside.",
+                  ],
+                  pos="Cyclical setup is real",
+                  concern="Priced for perfection — late-cycle warning")
+    if euphoria_score >= 3:
+        return _v("HOLD", "MEDIUM",
+                  [
+                      "Quality is here, but the entry price reflects too much optimism.",
+                      "I'd rather wait for a 20% pullback than chase the consensus long.",
+                  ],
+                  pos="Underlying business is sound",
+                  concern="Crowd is fully positioned — what's the next marginal buyer?")
+
+    # Look for contrarian setups
+    if pe_t and pe_t < 15 and quality_ok:
+        return _v("STRONG_BUY", "HIGH",
+                  [
+                      f"Trading at {pe_t:.0f}x trailing — clearly out of favor despite real quality.",
+                      "Second-level: while everyone chases obvious AI winners, this gets ignored.",
+                      "Margin of safety relative to where the cycle stands.",
+                  ],
+                  pos="Contrarian value setup",
+                  concern="Could stay out-of-favor longer than expected")
+
+    if pe_f and pe_f < 20 and quality_ok:
+        score = 0
+        score += 2 if rev_fwd >= 0.10 else 0
+        score += 1 if moat >= 70 else 0
+        if score >= 2:
+            return _v("BUY", "HIGH",
+                      [
+                          f"Reasonable P/E ({pe_f:.0f}x fwd) for the quality on offer.",
+                          "Cycle has not yet over-priced this name.",
+                      ],
+                      pos="Risk-adjusted setup",
+                      concern="Watch for cycle rollover")
+
+    if pe_f and pe_f >= 25:
+        return _v("HOLD", "MEDIUM",
+                  [
+                      f"P/E forward {pe_f:.0f}x leaves little room for cycle disappointment.",
+                      "I'd want a more attractive entry before committing capital.",
+                  ],
+                  pos="Quality acknowledged",
+                  concern="Late-cycle valuation")
+
+    return _v("HOLD", "LOW",
+              ["Neutral — neither cheap nor euphoric. Waiting for a clearer setup."],
+              pos=None, concern="No edge here")
+
+
+# ---------------- Michael Burry ----------------
+
+def burry(c: CompanyView) -> dict:
+    """Bubble caller. Math over narrative. Short the consensus when the numbers don't work."""
+    reasoning: list[str] = []
+    pe_f = _pe_f(c)
+    pe_t = _pe_t(c)
+    peg = _peg(c)
+    rev_fwd = _rev_fwd(c) or 0
+    op = _op_mgn(c)
+    fcf = _fcf(c)
+    bucket = _bucket(c) or ""
+    component = c.get("component", "")
+
+    if not _is_public(c):
+        return _v("PASS", "MEDIUM",
+                  ["Private — I can't short it, can't size it, can't trust the markup."],
+                  None, "No real price discovery on private marks.")
+
+    # Hard AVOID signals (bubble territory)
+    bubble_flags = []
+    if pe_t is not None and pe_t > 40: bubble_flags.append(f"P/E TTM {pe_t:.0f}x")
+    if pe_f is not None and pe_f > 35: bubble_flags.append(f"P/E fwd {pe_f:.0f}x")
+    if peg is not None and peg > 2.5: bubble_flags.append(f"PEG {peg:.1f}")
+    if op is not None and op < 0: bubble_flags.append(f"negative op margin ({op*100:.0f}%)")
+    if fcf is not None and fcf < -0.05: bubble_flags.append(f"burning cash (FCF yield {fcf*100:.1f}%)")
+
+    # Capex-heavy AI hype names
+    AI_HYPE_LAYERS = {"AI Accelerator Silicon", "Foundation Model Labs", "GPU Neoclouds",
+                       "Inference Hardware Startups"}
+
+    if len(bubble_flags) >= 3:
+        return _v("AVOID", "HIGH",
+                  [
+                      f"Multiple bubble signals stacked: {', '.join(bubble_flags)}.",
+                      f"This is what 1999 looked like in {component}.",
+                      "I would short into rallies. The math doesn't work.",
+                  ],
+                  pos="Narrative is strong (which is the problem)",
+                  concern="Re-rating risk on first earnings disappointment is brutal")
+
+    if len(bubble_flags) >= 2:
+        return _v("AVOID", "MEDIUM",
+                  [
+                      f"Two bubble signals: {', '.join(bubble_flags)}.",
+                      "I'd avoid here — the asymmetry is wrong.",
+                  ],
+                  pos="Real business under the hype",
+                  concern="Consensus too crowded")
+
+    if pe_f is not None and pe_f > 30 and component in AI_HYPE_LAYERS:
+        return _v("PASS", "MEDIUM",
+                  [
+                      f"AI hype layer at {pe_f:.0f}x forward — this is the trade everyone is in.",
+                      "I look for what nobody wants, not what everyone owns.",
+                  ],
+                  pos="Real growth", concern="Priced for ten-year perfection")
+
+    # Burry will buy crashed quality
+    score = 0
+    if pe_t is not None and pe_t < 12: score += 3; reasoning.append(f"P/E TTM {pe_t:.0f}x — clearly distressed.")
+    if pe_f is not None and pe_f < 15: score += 2; reasoning.append(f"Forward P/E {pe_f:.0f}x is value-investor territory.")
+    if peg is not None and peg < 1.0: score += 1; reasoning.append(f"PEG {peg:.2f} — growth essentially free.")
+    if fcf is not None and fcf > 0.05: score += 1; reasoning.append(f"FCF yield {fcf*100:.1f}% is real cash.")
+
+    if score >= 4:
+        verdict, conv = "STRONG_BUY", "HIGH"
+        reasoning.append("This is the kind of crashed-quality setup I size into.")
+    elif score >= 2:
+        verdict, conv = "BUY", "MEDIUM"
+    elif score >= 1:
+        verdict, conv = "HOLD", "LOW"
+    else:
+        verdict, conv = "PASS", "MEDIUM"
+        if not reasoning:
+            reasoning.append("Nothing to do — neither cheap enough to buy nor extreme enough to short.")
+
+    return _v(verdict, conv, reasoning,
+              pos=f"Distressed multiples ({pe_t:.0f}x TTM)" if pe_t and pe_t < 15 else "Real cash flow",
+              concern="Watch for accounting / capex surprises")
+
+
+# ---------------- Ray Dalio ----------------
+
+def dalio(c: CompanyView) -> dict:
+    """Macro + debt cycle + geopolitics. Diversify, avoid concentrated geopolitical chokepoints."""
+    reasoning: list[str] = []
+    hq = (c.get("hq_country") or "").lower()
+    customer = (c.get("customer_concentration") or "").lower()
+    rev_fwd = _rev_fwd(c) or 0
+    op = _op_mgn(c)
+    div = _div(c) or 0
+    pe_f = _pe_f(c)
+    sole = _sole(c)
+
+    # Geopolitical risk overlay
+    geopolitical_risk = 0
+    if any(w in hq for w in ("taiwan", "china", "korea")):
+        geopolitical_risk += 2
+        reasoning.append(f"Headquartered in {c.get('hq_country')} — meaningful geopolitical concentration risk.")
+    if "china" in customer or "taiwan" in customer:
+        geopolitical_risk += 1
+        reasoning.append("Customer base has Taiwan/China concentration — export-control exposure.")
+
+    # All-weather scoring
+    aw_score = 0
+    if op is not None and op >= 0.20: aw_score += 1; reasoning.append(f"Strong margins ({op*100:.0f}%) — survives drawdowns.")
+    if div >= 0.015: aw_score += 1; reasoning.append(f"Dividend ({div*100:.1f}%) cushions through regime changes.")
+    if pe_f is not None and pe_f <= 22: aw_score += 1; reasoning.append(f"Reasonable valuation ({pe_f:.0f}x fwd).")
+    if rev_fwd >= 0.10 and rev_fwd <= 0.30: aw_score += 1; reasoning.append("Sustainable growth (not parabolic).")
+
+    # Sole-source / single-region = concentration risk in Dalio's framework
+    if sole and geopolitical_risk >= 1:
+        return _v("HOLD", "MEDIUM",
+                  ["Sole-source + geopolitical concentration is exactly the chokepoint I diversify away from."]
+                  + reasoning,
+                  pos="Underlying productivity gain is real",
+                  concern="Single point of failure in a fracturing world")
+
+    # High-flyer with no geographic balance = pass
+    if rev_fwd > 0.50 and div < 0.005:
+        return _v("PASS", "MEDIUM",
+                  [
+                      "Parabolic growth without dividend cushion fails in a tightening regime.",
+                      "I'd want diversification or a hedge.",
+                  ] + reasoning,
+                  pos="Productivity gain", concern="No defense in a regime change")
+
+    if geopolitical_risk >= 2:
+        return _v("HOLD" if aw_score >= 2 else "PASS", "MEDIUM",
+                  ["Geopolitical chokepoint risk dominates the underwriting."] + reasoning,
+                  pos="Quality acknowledged",
+                  concern="Diversification mandate would cap position size")
+
+    if aw_score >= 3 and geopolitical_risk == 0:
+        return _v("BUY", "HIGH",
+                  reasoning + [
+                      "Diversified, profitable, reasonably valued — this works in multiple regimes.",
+                  ],
+                  pos="All-weather characteristics",
+                  concern="Watch debt-cycle sensitivity")
+
+    if aw_score >= 2:
+        return _v("BUY", "MEDIUM",
+                  reasoning + ["Holds together in most regimes."],
+                  pos="Defensive characteristics",
+                  concern="Geographic concentration to monitor")
+
+    if aw_score >= 1:
+        return _v("HOLD", "LOW", reasoning, None, "Position-size carefully")
+
+    return _v("PASS", "MEDIUM",
+              ["Neither defensive nor diversified enough for an all-weather portfolio."],
+              None, "Doesn't fit my framework")
+
+
 # ---------------- registry ----------------
 
 RUBRICS: dict[str, callable] = {
@@ -361,6 +596,9 @@ RUBRICS: dict[str, callable] = {
     "graham": graham,
     "druck": druck,
     "wood": wood,
+    "marks": marks,
+    "burry": burry,
+    "dalio": dalio,
 }
 
 

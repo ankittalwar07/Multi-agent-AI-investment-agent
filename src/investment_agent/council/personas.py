@@ -165,6 +165,81 @@ COUNCIL: list[InvestorPersona] = [
         ),
         avatar=":rocket:",
     ),
+
+    # --------- BEAR / SKEPTIC VOICES ---------
+
+    InvestorPersona(
+        key="marks",
+        name="Howard Marks",
+        firm="Oaktree Capital",
+        era="Living legend",
+        style="Cycle-aware Contrarian",
+        philosophy="Second-level thinking. Where are we in the cycle? What's already priced in?",
+        favors=[
+            "Margin of safety relative to where the cycle stands",
+            "Contrarian setups — buying when others are selling",
+            "Risk-adjusted returns over absolute returns",
+            "Distressed or out-of-favor quality businesses",
+        ],
+        dislikes=[
+            "Crowded longs at peak euphoria",
+            "Stocks priced for perfection (no room for error)",
+            "'This time it's different' narratives",
+            "Late-cycle capex booms that look like 1999",
+        ],
+        famous_quote=(
+            "The most dangerous words in investing are 'this time it's different.'"
+        ),
+        avatar=":hourglass:",
+    ),
+    InvestorPersona(
+        key="burry",
+        name="Michael Burry",
+        firm="Scion Asset Management",
+        era="Living",
+        style="Bubble Caller / Contrarian",
+        philosophy="Identify mispricing through original research; short the consensus when the math doesn't work.",
+        favors=[
+            "Crashed names with hidden value (post-bubble pickup)",
+            "Real cash flow — not narrative growth",
+            "P/E and EV/EBITDA at clearly distressed levels",
+            "Inflection situations where consensus is wrong",
+        ],
+        dislikes=[
+            "Extreme valuations (P/E > 35, PEG > 2) regardless of growth",
+            "Capex-heavy unprofitable businesses funded by hype",
+            "AI/semis trading at peak-cycle multiples — 'this is 1999'",
+            "Crowded passive flows propping up index favorites",
+        ],
+        famous_quote=(
+            "What is most amazing is not just the boom, but the broad complacency about it."
+        ),
+        avatar=":no_entry:",
+    ),
+    InvestorPersona(
+        key="dalio",
+        name="Ray Dalio",
+        firm="Bridgewater Associates",
+        era="Living legend",
+        style="Macro / Debt-Cycle / Geopolitics",
+        philosophy="Diversify intelligently. Understand the long-term debt and geopolitical cycles.",
+        favors=[
+            "Diversified geographic and end-market exposure",
+            "All-weather businesses that work in multiple regimes",
+            "Strong balance sheets to weather drawdowns",
+            "Secular productivity gains that survive policy shocks",
+        ],
+        dislikes=[
+            "Heavy China-export concentration (export-control risk)",
+            "Single-region geopolitical chokepoints (Taiwan, Korea)",
+            "Highly levered capex cyclicals at peak demand",
+            "Concentration when diversification is cheap",
+        ],
+        famous_quote=(
+            "He who lives by the crystal ball will eat shattered glass."
+        ),
+        avatar=":globe_with_meridians:",
+    ),
 ]
 
 
