@@ -115,63 +115,14 @@ class MockProvider(LLMProvider):
                 finish_reason="tool_use",
             )
 
-        # Otherwise, emit the final findings as JSON.
-        findings = {
-            "component": component,
-            "companies": [
-                {
-                    "name": f"Mock Leader for {component}",
-                    "is_public": True,
-                    "ticker": "MOCK",
-                    "hq_country": "US",
-                    "market_share_pct": 72.0,
-                    "market_share_bucket": "50-75",
-                    "single_source": False,
-                    "moat_types": ["scale", "ip"],
-                    "switching_costs": "high - integrated toolchain",
-                    "customer_concentration": "top 5 customers = 60% of revenue",
-                    "demand_signal": "order book +40% YoY",
-                    "valuation_usd": None,
-                    "notes": "Mock-mode placeholder finding.",
-                    "evidence": [
-                        {
-                            "claim": "Mock leader holds ~72% share.",
-                            "source_url": "https://example.com/mock-report",
-                            "source_name": "web",
-                            "tool_name": "web_search",
-                            "snippet": "Mock snippet describing market position.",
-                        }
-                    ],
-                },
-                {
-                    "name": f"Mock Challenger for {component}",
-                    "is_public": False,
-                    "ticker": None,
-                    "hq_country": "US",
-                    "market_share_pct": 18.0,
-                    "market_share_bucket": "10-25",
-                    "single_source": False,
-                    "moat_types": ["tech"],
-                    "switching_costs": "medium",
-                    "customer_concentration": "diversified",
-                    "demand_signal": "growing customer pipeline",
-                    "valuation_usd": 5_000_000_000.0,
-                    "notes": "Mock-mode placeholder finding.",
-                    "evidence": [
-                        {
-                            "claim": "Mock challenger raised at $5B.",
-                            "source_url": "https://example.com/mock-funding",
-                            "source_name": "web",
-                            "tool_name": "web_search",
-                            "snippet": "Series E raise reported by tech press.",
-                        }
-                    ],
-                },
-            ],
-        }
+        # Final: pull realistic mock data for this component.
+        from .mock_data import findings_for_component
+
+        companies = findings_for_component(component)
+        findings = {"component": component, "companies": companies}
         return LLMResponse(
             content=json.dumps(findings),
-            usage=Usage(input_tokens=400, output_tokens=300, cost_usd=0.0),
+            usage=Usage(input_tokens=400, output_tokens=400, cost_usd=0.0),
             finish_reason="stop",
         )
 
@@ -188,17 +139,27 @@ class MockProvider(LLMProvider):
     def _synthesizer_response(self, messages: list[LLMMessage]) -> LLMResponse:
         report = {
             "summary": (
-                "Mock synthesis: top opportunities cluster in single-source layers "
-                "(EUV, HBM, advanced packaging) where capacity is the binding constraint."
+                "The strongest arbitrage opportunities cluster in capacity-constrained, "
+                "single-source layers of the AI stack — EUV (ASML), CoWoS packaging (TSMC), "
+                "and HBM3E (SK Hynix) — where backlog stretches into 2026+ and pricing power "
+                "is durable. A second cluster is emerging in datacenter power & cooling, where "
+                "grid constraints are the new binding factor; Vertiv and Schneider look "
+                "underappreciated relative to capex commitments. Private-market mispricings "
+                "appear in neoclouds (customer-concentration discount on CoreWeave, latent "
+                "moat in Crusoe's stranded-power thesis) and frontier labs (Anthropic at "
+                "~60B vs. OpenAI at ~300B implies non-linear share scenarios)."
             ),
             "top_companies": [],
             "themes": [
-                "Capacity-constrained suppliers capture disproportionate margin.",
-                "Power and cooling have re-emerged as bottlenecks.",
+                "Single-source bottlenecks (ASML, TSMC CoWoS, SK Hynix HBM) keep pricing power into 2026.",
+                "Power & cooling has graduated from cost line to binding constraint — re-rate ahead.",
+                "Neoclouds: customer-concentration risk is mispriced; secondary-source neoclouds (Crusoe, Lambda) are the asymmetric bet.",
+                "Frontier-model labs trading at wide implied-share dispersion — Anthropic vs OpenAI gap suggests upside on share gains.",
+                "Tooling layer (vector DBs, agent frameworks) has weak switching costs; commodity risk is real.",
             ],
         }
         return LLMResponse(
             content=json.dumps(report),
-            usage=Usage(input_tokens=500, output_tokens=200, cost_usd=0.0),
+            usage=Usage(input_tokens=500, output_tokens=400, cost_usd=0.0),
             finish_reason="stop",
         )

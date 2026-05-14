@@ -40,7 +40,8 @@ def test_mock_pipeline_e2e(tmp_runs_dir: Path):
     assert len(view.components) == 3
     assert all(c.status == "done" for c in view.components)
 
-    assert len(view.companies) == 6  # mock returns 2 companies per component
+    # Mock returns 2-3 realistic companies per component depending on the layer.
+    assert len(view.companies) >= 6
     for company in view.companies:
         assert company.score is not None
         assert company.score.composite is not None

@@ -40,21 +40,39 @@ Pick at run time — the system has a thin `LLMProvider` adapter so the same age
 - `gemini` (Google)
 - `mock` (deterministic fixtures, no API calls — used for tests and `make smoke`)
 
-## Quickstart
+## Quickstart (local)
 
 ```bash
-make install-dev
-cp .env.example .env   # fill in keys for whichever provider(s) you want
+pip install -r requirements.txt
+cp .env.example .env   # fill in ANTHROPIC_API_KEY (or another provider)
 
 # Smoke test end-to-end with the mock provider (no API spend):
 make smoke
 
-# Real run with Gemini against the full seed:
-python -m investment_agent.cli run --provider gemini --model gemini-1.5-pro
+# Real run with Claude against the full seed:
+python -m investment_agent.cli run --provider anthropic --model claude-sonnet-4-6
 
-# Streamlit UI:
-make ui
+# Streamlit dashboard (visual prototype):
+streamlit run streamlit_app.py
 ```
+
+The dashboard ships with **Demo mode** on by default — it uses hand-crafted
+realistic mock data (real incumbents, plausible shares, demand signals) so you
+can explore the visuals without any API keys.
+
+## Deploy to Streamlit Community Cloud (free public link)
+
+1. Push this repo to GitHub (already the case for `ankittalwar07/Multi-agent-AI-investment-agent`).
+2. Go to <https://share.streamlit.io> → **New app**.
+3. Select the repo, branch `claude/multi-agent-market-analysis-NKfET` (or `main`), main file: `streamlit_app.py`.
+4. Click **Deploy**. You'll get a public URL like `https://<your-app>.streamlit.app`.
+5. (Optional) Add `ANTHROPIC_API_KEY` etc. in **App settings → Secrets** if you want live runs against Claude/Gemini/OpenAI. Without keys the app still works in Demo mode.
+
+The repo includes:
+- `streamlit_app.py` at the root (Streamlit Cloud's expected entry point)
+- `pages/` directory at the root (auto-discovered multipage layout)
+- `requirements.txt` with all deps
+- `.streamlit/config.toml` with a dark investor theme
 
 ## Repository layout
 

@@ -5,14 +5,17 @@ from pathlib import Path
 
 import streamlit as st
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
+if str(ROOT / "app") not in sys.path:
+    sys.path.insert(0, str(ROOT / "app"))
 
+from dashboard_utils import arbitrage_tilt, composite_with_tilt  # noqa: E402
 from investment_agent.storage.repository import RunRepository  # noqa: E402
 
-st.title("Companies")
+st.title(":office: Companies")
 
 cfg = st.session_state.get("cfg")
 if cfg is None or not cfg.get("chosen_run"):
@@ -66,6 +69,8 @@ rows = [
         "sole?": c.single_source,
         "moats": ", ".join(c.moat_types),
         "score": c.score.composite if c.score else None,
+        "arb_tilt": arbitrage_tilt(c),
+        "arb_score": composite_with_tilt(c),
     }
     for c in filtered
 ]
