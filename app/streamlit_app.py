@@ -19,6 +19,36 @@ if str(ROOT / "app") not in sys.path:
 from investment_agent.config import get_settings  # noqa: E402
 from investment_agent.storage.repository import RunRepository, list_run_ids  # noqa: E402
 
+
+def _load_secrets_into_env() -> None:
+    """Copy Streamlit Cloud secrets into env vars so providers can pick them up.
+
+    On Streamlit Cloud, users paste keys into Settings -> Secrets (TOML). We
+    mirror them into os.environ so the LLM providers (which read env vars)
+    and the paid-data tools work without code changes.
+    """
+    import os
+
+    for key in (
+        "GOOGLE_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "OPENAI_API_KEY",
+        "BLOOMBERG_API_KEY",
+        "PITCHBOOK_API_KEY",
+        "CRUNCHBASE_API_KEY",
+        "SIMILARWEB_API_KEY",
+    ):
+        try:
+            val = st.secrets.get(key)  # type: ignore[attr-defined]
+        except Exception:
+            val = None
+        if val and not os.environ.get(key):
+            os.environ[key] = str(val)
+
+
+_load_secrets_into_env()
+
+
 st.set_page_config(
     page_title="AI Infra Arbitrage",
     page_icon=":dart:",
@@ -27,11 +57,12 @@ st.set_page_config(
 )
 
 
-PROVIDERS = ["anthropic", "openai", "gemini", "mock"]
+PROVIDERS = ["gemini", "anthropic", "openai", "mock"]
 DEFAULT_MODELS = {
     "anthropic": "claude-sonnet-4-6",
     "openai": "gpt-4o",
-    "gemini": "gemini-1.5-pro",
+    # Flash is the recommended free-tier model on Google AI Studio (most generous limits).
+    "gemini": "gemini-2.0-flash",
     "mock": "mock-v1",
 }
 

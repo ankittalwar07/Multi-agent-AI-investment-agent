@@ -13,8 +13,8 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # LLM
-    llm_provider: str = Field(default="mock", alias="LLM_PROVIDER")
+    # LLM — default to Gemini Flash (free tier on Google AI Studio).
+    llm_provider: str = Field(default="gemini", alias="LLM_PROVIDER")
     llm_model: str | None = Field(default=None, alias="LLM_MODEL")
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")

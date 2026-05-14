@@ -40,21 +40,29 @@ Pick at run time — the system has a thin `LLMProvider` adapter so the same age
 - `gemini` (Google)
 - `mock` (deterministic fixtures, no API calls — used for tests and `make smoke`)
 
-## Quickstart (local)
+## Quickstart (local) — free path with Gemini
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env   # fill in ANTHROPIC_API_KEY (or another provider)
 
-# Smoke test end-to-end with the mock provider (no API spend):
-make smoke
+# 1. Grab a FREE Gemini API key (no credit card required)
+#    https://aistudio.google.com/apikey
+export GOOGLE_API_KEY="paste-your-key-here"
 
-# Real run with Claude against the full seed:
-python -m investment_agent.cli run --provider anthropic --model claude-sonnet-4-6
+# 2. Verify it works end-to-end (one call, prints the response)
+PYTHONPATH=src python scripts/test_gemini.py
 
-# Streamlit dashboard (visual prototype):
+# 3. Generate a real run against the AI-infra stack
+PYTHONPATH=src python -m investment_agent.cli run \
+    --provider gemini --model gemini-2.0-flash --max-components 5
+
+# 4. Launch the dashboard
 streamlit run streamlit_app.py
 ```
+
+The free tier of `gemini-2.0-flash` allows ~15 requests/minute and ~1M tokens/day —
+plenty for several full runs per day. If you prefer Claude / GPT-4o, those
+providers are available in the same sidebar dropdown (paid).
 
 The dashboard ships with **Demo mode** on by default — it uses hand-crafted
 realistic mock data (real incumbents, plausible shares, demand signals) so you

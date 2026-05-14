@@ -1,14 +1,36 @@
 from __future__ import annotations
 
+import json
 import os
 import uuid
 from typing import Literal
 
 from .base import LLMMessage, LLMProvider, LLMResponse, ToolCall, ToolSpec, Usage
 
-# Gemini 1.5 Pro reference pricing.
-DEFAULT_INPUT_PRICE = 1.25 / 1_000_000
-DEFAULT_OUTPUT_PRICE = 5.0 / 1_000_000
+# Gemini 2.0 Flash reference pricing (very cheap; generous free tier).
+# Flash is the recommended free-tier model. Pro is metered and stricter.
+DEFAULT_INPUT_PRICE = 0.10 / 1_000_000
+DEFAULT_OUTPUT_PRICE = 0.40 / 1_000_000
+
+
+def _clean_schema(schema: dict | None) -> dict:
+    """Gemini's function-declaration schema is OpenAPI-3-ish but rejects some
+    JSON Schema constructs (e.g. `additionalProperties`, `$ref`, `anyOf`).
+    Strip the ones that commonly cause 400s."""
+    if not isinstance(schema, dict):
+        return {"type": "object"}
+    drop = {"additionalProperties", "$ref", "$defs", "definitions"}
+    out: dict = {}
+    for k, v in schema.items():
+        if k in drop:
+            continue
+        if isinstance(v, dict):
+            out[k] = _clean_schema(v)
+        elif isinstance(v, list):
+            out[k] = [_clean_schema(x) if isinstance(x, dict) else x for x in v]
+        else:
+            out[k] = v
+    return out
 
 
 class GeminiProvider(LLMProvider):
@@ -22,12 +44,47 @@ class GeminiProvider(LLMProvider):
                 "google-generativeai not installed. `pip install google-generativeai`."
             ) from e
 
-        self.model = model or "gemini-1.5-pro"
+        # Default to Flash — generous free tier on Google AI Studio.
+        self.model = model or "gemini-2.0-flash"
         key = api_key or os.environ.get("GOOGLE_API_KEY")
         if not key:
             raise RuntimeError("GOOGLE_API_KEY not set.")
         genai.configure(api_key=key)
         self._genai = genai
+
+    def _build_history(self, messages: list[LLMMessage]) -> list[dict]:
+        """Convert our messages into Gemini's history shape.
+
+        Gemini expects alternating user/model turns. Tool results are sent as
+        function_response parts. Adjacent user-role messages are merged so we
+        don't violate the alternation rule.
+        """
+        history: list[dict] = []
+        for m in messages:
+            if m.role == "system":
+                continue
+            if m.role == "tool":
+                # function_response part
+                try:
+                    payload = json.loads(m.content)
+                except (json.JSONDecodeError, TypeError):
+                    payload = {"result": m.content}
+                part = {
+                    "function_response": {
+                        "name": m.name or "tool",
+                        "response": payload if isinstance(payload, dict) else {"result": payload},
+                    }
+                }
+                history.append({"role": "user", "parts": [part]})
+                continue
+
+            role = "user" if m.role == "user" else "model"
+            # Merge if previous turn has same role (Gemini dislikes consecutive same-role turns)
+            if history and history[-1]["role"] == role:
+                history[-1]["parts"].append(m.content)
+            else:
+                history.append({"role": role, "parts": [m.content]})
+        return history
 
     def complete(
         self,
@@ -39,16 +96,6 @@ class GeminiProvider(LLMProvider):
     ) -> LLMResponse:
         system_chunks = [m.content for m in messages if m.role == "system"]
         system_instruction = "\n\n".join(system_chunks) if system_chunks else None
-
-        history = []
-        latest_user: str | None = None
-        for m in messages:
-            if m.role == "system":
-                continue
-            role = "user" if m.role in ("user", "tool") else "model"
-            history.append({"role": role, "parts": [m.content]})
-            if m.role == "user":
-                latest_user = m.content
 
         gen_config = {
             "temperature": temperature,
@@ -65,7 +112,7 @@ class GeminiProvider(LLMProvider):
                         {
                             "name": t.name,
                             "description": t.description,
-                            "parameters": t.json_schema,
+                            "parameters": _clean_schema(t.json_schema),
                         }
                         for t in tools
                     ]
@@ -79,27 +126,33 @@ class GeminiProvider(LLMProvider):
             generation_config=gen_config,
         )
 
-        if history:
-            chat = model.start_chat(history=history[:-1])
-            resp = chat.send_message(history[-1]["parts"][0])
+        history = self._build_history(messages)
+        if not history:
+            resp = model.generate_content("")
         else:
-            resp = model.generate_content(latest_user or "")
+            prior, last = history[:-1], history[-1]
+            chat = model.start_chat(history=prior) if prior else model.start_chat()
+            resp = chat.send_message(last["parts"])
 
         text_parts: list[str] = []
         tool_calls: list[ToolCall] = []
         for candidate in getattr(resp, "candidates", []) or []:
-            for part in getattr(candidate.content, "parts", []) or []:
+            content = getattr(candidate, "content", None)
+            for part in getattr(content, "parts", []) or []:
                 fc = getattr(part, "function_call", None)
-                if fc:
+                if fc and getattr(fc, "name", None):
+                    args = dict(fc.args) if getattr(fc, "args", None) else {}
                     tool_calls.append(
                         ToolCall(
                             id=f"call_{uuid.uuid4().hex[:8]}",
                             name=fc.name,
-                            arguments=dict(fc.args or {}),
+                            arguments=args,
                         )
                     )
-                elif getattr(part, "text", None):
-                    text_parts.append(part.text)
+                else:
+                    text = getattr(part, "text", None)
+                    if text:
+                        text_parts.append(text)
 
         usage_meta = getattr(resp, "usage_metadata", None)
         input_tokens = getattr(usage_meta, "prompt_token_count", 0) if usage_meta else 0
@@ -107,9 +160,7 @@ class GeminiProvider(LLMProvider):
         usage = Usage(
             input_tokens=input_tokens,
             output_tokens=output_tokens,
-            cost_usd=(
-                input_tokens * DEFAULT_INPUT_PRICE + output_tokens * DEFAULT_OUTPUT_PRICE
-            ),
+            cost_usd=(input_tokens * DEFAULT_INPUT_PRICE + output_tokens * DEFAULT_OUTPUT_PRICE),
         )
 
         return LLMResponse(
