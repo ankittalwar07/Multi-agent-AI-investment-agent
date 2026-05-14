@@ -134,8 +134,12 @@ if not cfg["chosen_run"]:
     st.stop()
 
 
-repo = RunRepository(Path(cfg["output_dir"]) / f"{cfg['chosen_run']}.db")
-view = repo.get_view(cfg["chosen_run"])
+try:
+    repo = RunRepository(Path(cfg["output_dir"]) / f"{cfg['chosen_run']}.db")
+    view = repo.get_view(cfg["chosen_run"])
+except Exception as e:
+    st.error(f"Could not load run `{cfg['chosen_run']}`: {e}")
+    st.stop()
 
 from dashboard_utils import (  # noqa: E402
     REC_COLORS, REC_LABELS,
@@ -145,6 +149,38 @@ from dashboard_utils import (  # noqa: E402
 )
 
 df = view_to_dataframe(view)
+
+# Show progress UI if a run is in progress or empty
+if view.run.status == "running" or df.empty:
+    if view.run.status == "running":
+        st.warning(
+            f":hourglass_flowing_sand: Run **{view.run.id}** is still in progress — "
+            f"provider **{view.run.provider}**, model **{view.run.model or '-'}**. "
+            "Refresh in ~30s, or switch to a completed run from the sidebar."
+        )
+    elif view.run.status == "error":
+        st.error(
+            f"Run **{view.run.id}** failed: {view.run.error or 'unknown error'}. "
+            "Pick a different run from the sidebar, or try Demo mode if a live "
+            "provider run errored out."
+        )
+    else:
+        st.warning(
+            f"Run **{view.run.id}** completed with no companies — the LLM provider "
+            "likely returned malformed JSON or hit a rate limit. Try Demo mode "
+            "or check the Run page event log."
+        )
+    # Show events tail so the user can see what's happening
+    st.markdown("### Run event log (most recent 30)")
+    events_to_show = view.events[:30]
+    st.dataframe(
+        [
+            {"ts": e.ts, "level": e.level, "node": e.node, "message": e.message}
+            for e in events_to_show
+        ],
+        use_container_width=True, hide_index=True,
+    )
+    st.stop()
 
 
 # ---------------- KPI ROW ----------------

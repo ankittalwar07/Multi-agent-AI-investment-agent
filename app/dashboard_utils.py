@@ -88,10 +88,31 @@ def fmt_price(v) -> str:
 
 # ---------------------- DataFrame builders ----------------------
 
+# Column list kept explicit so an empty df still has the expected schema —
+# this prevents KeyErrors when a run is in progress / produced no companies.
+DF_COLUMNS = [
+    "id", "name", "component", "is_public", "ticker", "hq_country",
+    "market_share_pct", "market_share_bucket", "single_source", "moat_types",
+    "switching_costs", "customer_concentration", "demand_signal", "valuation_usd",
+    "composite", "evidence_count",
+    "structure", "supply_status",
+    "stock_price", "market_cap_usd", "pe_trailing", "pe_forward", "peg",
+    "ev_ebitda", "ev_sales", "revenue_growth_ttm", "revenue_growth_fwd",
+    "operating_margin", "fcf_yield", "dividend_yield", "beta",
+    "week52_high", "week52_low",
+    "analyst_buy", "analyst_hold", "analyst_sell",
+    "price_target_low", "price_target_avg", "price_target_high",
+    "recommendation", "conviction", "expected_return_12m",
+    "bull_target", "base_target", "bear_target", "thesis_summary",
+]
+
+
 def view_to_dataframe(view: RunView) -> pd.DataFrame:
     """Flatten the run into a tabular DataFrame for charts/tables.
 
-    Pulls financials + recommendation out of the CompanyExtras into top-level columns.
+    Pulls financials + recommendation out of CompanyExtras into top-level
+    columns. Returns a column-stable DataFrame even when there are no
+    companies (run still in progress).
     """
     comp_by_id = {c.id: c.name for c in view.components}
     rows = []
@@ -99,12 +120,9 @@ def view_to_dataframe(view: RunView) -> pd.DataFrame:
         e = c.extras
         rows.append(
             {
-                "id": c.id,
-                "name": c.name,
+                "id": c.id, "name": c.name,
                 "component": comp_by_id.get(c.component_id, "?"),
-                "is_public": c.is_public,
-                "ticker": c.ticker,
-                "hq_country": c.hq_country,
+                "is_public": c.is_public, "ticker": c.ticker, "hq_country": c.hq_country,
                 "market_share_pct": c.market_share_pct,
                 "market_share_bucket": c.market_share_bucket,
                 "single_source": bool(c.single_source),
@@ -115,40 +133,30 @@ def view_to_dataframe(view: RunView) -> pd.DataFrame:
                 "valuation_usd": c.valuation_usd,
                 "composite": c.score.composite if c.score and c.score.composite is not None else 0,
                 "evidence_count": len(c.evidence),
-                # extras
-                "structure": e.structure,
-                "supply_status": e.supply_status,
-                "stock_price": e.stock_price,
-                "market_cap_usd": e.market_cap_usd,
-                "pe_trailing": e.pe_trailing,
-                "pe_forward": e.pe_forward,
-                "peg": e.peg,
-                "ev_ebitda": e.ev_ebitda,
-                "ev_sales": e.ev_sales,
+                "structure": e.structure, "supply_status": e.supply_status,
+                "stock_price": e.stock_price, "market_cap_usd": e.market_cap_usd,
+                "pe_trailing": e.pe_trailing, "pe_forward": e.pe_forward, "peg": e.peg,
+                "ev_ebitda": e.ev_ebitda, "ev_sales": e.ev_sales,
                 "revenue_growth_ttm": e.revenue_growth_ttm,
                 "revenue_growth_fwd": e.revenue_growth_fwd,
-                "operating_margin": e.operating_margin,
-                "fcf_yield": e.fcf_yield,
-                "dividend_yield": e.dividend_yield,
-                "beta": e.beta,
-                "week52_high": e.week52_high,
-                "week52_low": e.week52_low,
-                "analyst_buy": e.analyst_buy,
-                "analyst_hold": e.analyst_hold,
+                "operating_margin": e.operating_margin, "fcf_yield": e.fcf_yield,
+                "dividend_yield": e.dividend_yield, "beta": e.beta,
+                "week52_high": e.week52_high, "week52_low": e.week52_low,
+                "analyst_buy": e.analyst_buy, "analyst_hold": e.analyst_hold,
                 "analyst_sell": e.analyst_sell,
                 "price_target_low": e.price_target_low,
                 "price_target_avg": e.price_target_avg,
                 "price_target_high": e.price_target_high,
-                "recommendation": e.recommendation,
-                "conviction": e.conviction,
+                "recommendation": e.recommendation, "conviction": e.conviction,
                 "expected_return_12m": e.expected_return_12m,
-                "bull_target": e.bull_target,
-                "base_target": e.base_target,
+                "bull_target": e.bull_target, "base_target": e.base_target,
                 "bear_target": e.bear_target,
                 "thesis_summary": e.thesis_summary,
             }
         )
-    return pd.DataFrame(rows)
+    if rows:
+        return pd.DataFrame(rows)
+    return pd.DataFrame(columns=DF_COLUMNS)
 
 
 def get_top_picks(df: pd.DataFrame, n: int = 5) -> pd.DataFrame:
@@ -169,7 +177,20 @@ def get_top_picks(df: pd.DataFrame, n: int = 5) -> pd.DataFrame:
 
 # ---------------------- Charts ----------------------
 
+def _empty_fig(msg: str = "No data") -> go.Figure:
+    fig = go.Figure()
+    fig.add_annotation(text=msg, xref="paper", yref="paper", x=0.5, y=0.5,
+                       showarrow=False, font=dict(color="#94a3b8", size=14))
+    fig.update_layout(
+        margin=dict(l=0, r=0, t=10, b=0), height=240,
+        xaxis=dict(visible=False), yaxis=dict(visible=False),
+    )
+    return fig
+
+
 def chart_recommendation_distribution(df: pd.DataFrame) -> go.Figure:
+    if df.empty or "recommendation" not in df.columns:
+        return _empty_fig("No recommendations yet")
     counts = df[df["recommendation"].isin(REC_ORDER)]["recommendation"].value_counts()
     ordered = [r for r in REC_ORDER if r in counts.index]
     values = [counts[r] for r in ordered]
@@ -255,6 +276,8 @@ def chart_price_targets(price: float | None, bear: float | None, base: float | N
 
 def chart_market_structure(df: pd.DataFrame) -> go.Figure:
     """Pie chart of market structures across components (unique per component)."""
+    if df.empty or "structure" not in df.columns:
+        return _empty_fig("No structure data yet")
     by_comp = df.dropna(subset=["structure"]).drop_duplicates(subset=["component"])
     counts = by_comp["structure"].value_counts()
     if counts.empty:
@@ -277,7 +300,12 @@ def chart_market_structure(df: pd.DataFrame) -> go.Figure:
 
 
 def chart_top_picks_bar(df: pd.DataFrame, n: int = 10) -> go.Figure:
-    top = get_top_picks(df, n=n).iloc[::-1]
+    if df.empty:
+        return _empty_fig("No picks yet — run still in progress?")
+    top = get_top_picks(df, n=n)
+    if top.empty:
+        return _empty_fig("No actionable BUY-rated names in this run")
+    top = top.iloc[::-1]
     top["label"] = top["name"] + " · " + top["ticker"].fillna("—")
     top["ret_pct"] = top["expected_return_12m"].fillna(0) * 100
     fig = go.Figure(
@@ -362,6 +390,8 @@ def chart_demand_supply(df_component: pd.DataFrame, component_name: str) -> go.F
 
 
 def chart_treemap_by_recommendation(df: pd.DataFrame) -> go.Figure:
+    if df.empty:
+        return _empty_fig("No companies yet")
     plot_df = df.copy()
     plot_df["rec_label"] = plot_df["recommendation"].map(REC_LABELS).fillna("—")
     plot_df["mcap_b"] = (plot_df["market_cap_usd"].fillna(plot_df["valuation_usd"].fillna(1e8)) / 1e9).clip(lower=0.5, upper=4000)
