@@ -53,12 +53,13 @@ from design import (  # noqa: E402
 apply_design()
 
 
-PROVIDERS = ["multi", "gemini", "groq", "anthropic", "openai", "mock"]
+PROVIDERS = ["multi", "gemini", "groq", "ollama", "anthropic", "openai", "mock"]
 DEFAULT_MODELS = {
     "anthropic": "claude-sonnet-4-6",
     "openai": "gpt-4o",
     "gemini": "gemini-2.0-flash",
     "groq": "llama-3.1-8b-instant",
+    "ollama": "qwen2.5:7b",
     "multi": "(rotating: gemini → groq)",
     "mock": "mock-v1",
 }
@@ -66,6 +67,7 @@ PROVIDER_HINTS = {
     "multi": "Rotates Gemini → Groq on rate limits. Best for long runs. Needs both keys set.",
     "gemini": "Free tier — get key at aistudio.google.com/apikey",
     "groq": "Free tier — Llama 3.1 8B Instant has 500k tokens/day (5x the 70B). Get key at console.groq.com/keys",
+    "ollama": "Local open-source models — no rate limits, no cost, full privacy. Install Ollama from ollama.com, then `ollama pull qwen2.5:7b`",
     "anthropic": "Paid — claude-sonnet-4-6",
     "openai": "Paid — gpt-4o",
     "mock": "No API call — hand-crafted demo data",

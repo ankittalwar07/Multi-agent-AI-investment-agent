@@ -36,5 +36,9 @@ def get_provider(
         from .groq_provider import GroqProvider
 
         return GroqProvider(model=model, **kwargs)
+    if name == "ollama":
+        from .ollama_provider import OllamaProvider
+
+        return OllamaProvider(model=model, **kwargs)
 
     raise ValueError(f"Unknown LLM provider: {name!r}")

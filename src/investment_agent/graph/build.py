@@ -227,7 +227,9 @@ class Pipeline:
         max_workers = max(1, self.settings.max_parallel_researchers)
         # Throttle parallelism on rate-limited free tiers so we don't burst
         # past TPM caps (Groq free = 6k TPM on 8B, 12k on 70B).
-        if opts.provider in ("groq", "multi"):
+        if opts.provider in ("groq", "multi", "ollama"):
+            # Free tiers: sequential to avoid TPM bursts.
+            # Ollama: typically one local GPU, so concurrent requests queue anyway.
             max_workers = 1
         elif opts.provider == "gemini" and max_workers > 2:
             max_workers = 2

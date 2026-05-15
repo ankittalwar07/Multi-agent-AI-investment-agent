@@ -43,7 +43,8 @@ def main() -> int:
     parser.add_argument(
         "--providers",
         default="gemini,groq",
-        help="Comma-separated provider chain. Default: gemini,groq",
+        help="Comma-separated provider chain. Default: gemini,groq. "
+              "Add 'ollama' for local fallback that never throttles.",
     )
     parser.add_argument(
         "--gemini-model", default="gemini-2.0-flash",
@@ -52,6 +53,10 @@ def main() -> int:
     parser.add_argument(
         "--groq-model", default="llama-3.1-8b-instant",
         help="Groq model (default: llama-3.1-8b-instant — 5x daily quota of 70B)",
+    )
+    parser.add_argument(
+        "--ollama-model", default="qwen2.5:7b",
+        help="Ollama (local) model (default: qwen2.5:7b)",
     )
     parser.add_argument("--resume", default=None, help="Resume the given run_id")
     parser.add_argument("--max-components", type=int, default=None, help="Limit components for testing")
@@ -84,6 +89,8 @@ def main() -> int:
                     print(f"  skipping groq — GROQ_API_KEY not set")
                     continue
                 providers.append(get_provider("groq", model=args.groq_model))
+            elif name == "ollama":
+                providers.append(get_provider("ollama", model=args.ollama_model))
             elif name == "mock":
                 providers.append(get_provider("mock"))
             else:

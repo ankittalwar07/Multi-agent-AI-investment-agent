@@ -41,7 +41,7 @@ def _build_llm():
         return get_provider("mock")
     if cfg["provider"] != "multi":
         return get_provider(cfg["provider"], model=cfg["model"], mock=False)
-    # Multi: try gemini then groq, whichever is configured
+    # Multi: try gemini → groq → ollama (local fallback that never throttles)
     chain = []
     for name, model in [
         ("gemini", "gemini-2.0-flash"),
@@ -53,8 +53,20 @@ def _build_llm():
                 chain.append(get_provider(name, model=model))
             except Exception:
                 pass
+    # Ollama as the unlimited local fallback — try a quick connectivity probe
+    try:
+        import urllib.request
+        base = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+        probe_url = base.rstrip("/v1").rstrip("/") + "/api/tags"
+        urllib.request.urlopen(probe_url, timeout=1.5)
+        chain.append(get_provider("ollama", model="qwen2.5:7b"))
+    except Exception:
+        pass
     if not chain:
-        st.error("No providers configured. Set GOOGLE_API_KEY and/or GROQ_API_KEY in Streamlit secrets.")
+        st.error(
+            "No providers configured. Set GOOGLE_API_KEY and/or GROQ_API_KEY in "
+            "Streamlit secrets, OR run Ollama locally (https://ollama.com)."
+        )
         st.stop()
     return MultiProviderLLM.from_providers(chain)
 

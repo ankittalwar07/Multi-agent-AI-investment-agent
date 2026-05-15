@@ -438,6 +438,16 @@ def _default_deep_dive_runner(names: list[str]) -> None:
                     chain.append(get_provider(name, model=model))
                 except Exception:
                     pass
+        # Ollama (local) as a no-rate-limit fallback if reachable
+        try:
+            import urllib.request
+            base = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+            urllib.request.urlopen(
+                base.rstrip("/v1").rstrip("/") + "/api/tags", timeout=1.5,
+            )
+            chain.append(get_provider("ollama", model="qwen2.5:7b"))
+        except Exception:
+            pass
         if not chain:
             return get_provider("mock")
         return MultiProviderLLM.from_providers(chain)
