@@ -47,7 +47,9 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from design import apply_design  # noqa: E402
+from design import (  # noqa: E402
+    apply_design, deep_dive_button, render_queue_sidebar,
+)
 apply_design()
 
 
@@ -109,6 +111,10 @@ def sidebar() -> dict:
 
 cfg = sidebar()
 st.session_state["cfg"] = cfg
+
+from design import render_deep_dive_status  # noqa: E402
+render_queue_sidebar(cfg.get("chosen_run"))
+render_deep_dive_status()
 
 st.markdown(
     "<h1 style='margin-bottom:0;'>AI Infrastructure — Investment Brief</h1>"
@@ -233,11 +239,18 @@ st.caption("Filtered to STRONG BUY / BUY with high conviction. Drill into any na
 df_sorted = df.copy()
 df_sorted["_council_boost"] = df_sorted["council_score_pct"].fillna(0) / 100
 top5 = get_top_picks(df_sorted, n=5)
+def _depth_for(name: str) -> str:
+    for c in view.companies:
+        if c.name == name:
+            return c.extras.analysis_depth or "triage"
+    return "triage"
+
+
 for _, row in top5.iterrows():
     rec = row["recommendation"]
     exp_ret_pct = (row["expected_return_12m"] or 0) * 100
     with st.container(border=True):
-        c1, c2, c3, c4 = st.columns([4, 2, 2, 3])
+        c1, c2, c3, c4, c5 = st.columns([4, 2, 2, 3, 1.1])
         with c1:
             ticker_html = (
                 f"<span style='color:#64748b;font-size:14px;font-weight:500;"
@@ -268,6 +281,10 @@ for _, row in top5.iterrows():
                     f"{row['thesis_summary']}</div>",
                     unsafe_allow_html=True,
                 )
+        with c5:
+            deep_dive_button(
+                row["name"], _depth_for(row["name"]), key_prefix="home_top5",
+            )
 
 st.markdown("---")
 

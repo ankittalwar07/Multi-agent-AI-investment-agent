@@ -16,6 +16,7 @@ if str(ROOT) not in sys.path:
 
 from design import apply_design  # noqa: E402
 apply_design()
+from design import render_queue_sidebar, render_deep_dive_status  # noqa: E402
 
 from dashboard_utils import (  # noqa: E402
     chart_treemap_by_recommendation, fmt_money, fmt_pct, fmt_price,
@@ -30,6 +31,9 @@ cfg = st.session_state.get("cfg")
 if cfg is None or not cfg.get("chosen_run"):
     st.warning("Pick a run on the home page first.")
     st.stop()
+
+render_queue_sidebar(cfg.get("chosen_run"))
+render_deep_dive_status()
 
 repo = RunRepository(Path(cfg["output_dir"]) / f"{cfg['chosen_run']}.db")
 view = repo.get_view(cfg["chosen_run"])

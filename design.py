@@ -329,3 +329,202 @@ def plotly_layout_dark() -> dict:
         hoverlabel=dict(bgcolor="#131c30", bordercolor="#334155",
                         font=dict(color="#f1f5f9", family="-apple-system, Inter, sans-serif")),
     )
+
+
+# ============== Deep-dive queue (session-state, cross-page) ==============
+#
+# A user-curated list of company names to pull from triage-tier sparse data
+# into full deep-dive analysis. Buttons live on the Home top-5 cards,
+# Investment Thesis header, Investor Council BUY lists, and Component picks.
+# A single "Run deep dive on queue" button in the sidebar fires them all.
+
+_QUEUE_KEY = "deep_dive_queue"
+
+
+def _queue() -> set:
+    if _QUEUE_KEY not in st.session_state:
+        st.session_state[_QUEUE_KEY] = set()
+    return st.session_state[_QUEUE_KEY]
+
+
+def queue_contents() -> list[str]:
+    return sorted(_queue())
+
+
+def queue_size() -> int:
+    return len(_queue())
+
+
+def queue_has(name: str) -> bool:
+    return name in _queue()
+
+
+def add_to_queue(name: str) -> None:
+    _queue().add(name)
+
+
+def remove_from_queue(name: str) -> None:
+    _queue().discard(name)
+
+
+def clear_queue() -> None:
+    _queue().clear()
+
+
+def deep_dive_button(
+    company_name: str,
+    analysis_depth: str | None,
+    *,
+    key_prefix: str,
+    label_add: str = "+ Deep dive",
+    label_remove: str = "✗ Queued",
+    label_done: str = "✓ Deep",
+) -> None:
+    """Render an inline button to add/remove a company from the deep-dive queue.
+
+    Skipped when the company is already at 'deep' depth.
+    Use a unique `key_prefix` per location so Streamlit doesn't collide.
+    """
+    if (analysis_depth or "triage") == "deep":
+        st.markdown(
+            f"<span style='display:inline-block;background:rgba(16,185,129,0.10);"
+            f"border:1px solid #10b981;color:#10b981;padding:2px 8px;"
+            f"border-radius:3px;font-size:10px;font-weight:600;letter-spacing:0.06em;"
+            f"text-transform:uppercase;'>{label_done}</span>",
+            unsafe_allow_html=True,
+        )
+        return
+    queued = queue_has(company_name)
+    safe = company_name.replace(" ", "_").replace("'", "").replace("/", "_")[:40]
+    key = f"q_{key_prefix}_{safe}"
+    if queued:
+        if st.button(label_remove, key=key, help="Remove from deep-dive queue"):
+            remove_from_queue(company_name)
+            st.rerun()
+    else:
+        if st.button(label_add, key=key, help="Queue for deep-dive analysis"):
+            add_to_queue(company_name)
+            st.rerun()
+
+
+def _default_deep_dive_runner(names: list[str]) -> None:
+    """Built-in callback that fires Pipeline.deep_dive_companies on a thread.
+
+    Reads the active run + provider config from st.session_state['cfg'].
+    Posts results into st.session_state['deep_dive_result'].
+    """
+    import os
+    import threading
+
+    cfg = st.session_state.get("cfg") or {}
+    run_id = cfg.get("chosen_run")
+    if not run_id:
+        st.toast("Pick a run first.", icon="ℹ")
+        return
+
+    def _build_llm():
+        from investment_agent.llm import MultiProviderLLM, get_provider
+        if cfg.get("mock"):
+            return get_provider("mock")
+        prov = cfg.get("provider", "gemini")
+        if prov != "multi":
+            return get_provider(prov, model=cfg.get("model"), mock=False)
+        chain = []
+        for name, model in [("gemini", "gemini-2.0-flash"),
+                              ("groq", "llama-3.1-8b-instant")]:
+            env = "GOOGLE_API_KEY" if name == "gemini" else "GROQ_API_KEY"
+            if os.environ.get(env):
+                try:
+                    chain.append(get_provider(name, model=model))
+                except Exception:
+                    pass
+        if not chain:
+            return get_provider("mock")
+        return MultiProviderLLM.from_providers(chain)
+
+    from investment_agent.config import Settings as _Settings
+    from investment_agent.graph.build import Pipeline
+    pipeline = Pipeline(settings=_Settings(), llm_factory=_build_llm)
+
+    st.session_state["deep_dive_in_progress"] = True
+    st.session_state["deep_dive_result"] = None
+
+    def _target():
+        try:
+            res = pipeline.deep_dive_companies(
+                run_id, names, output_dir=cfg.get("output_dir"),
+            )
+            st.session_state["deep_dive_result"] = res
+            clear_queue()
+        except Exception as e:
+            st.session_state["deep_dive_result"] = {"error": str(e)}
+        finally:
+            st.session_state["deep_dive_in_progress"] = False
+
+    threading.Thread(target=_target, daemon=True).start()
+    st.toast(f"Deep dive started on {len(names)} companies", icon=":dart:")
+
+
+def render_queue_sidebar(run_id: str | None, on_run_callback=None) -> None:
+    """Render the queue panel in the sidebar. Call once per page (after apply_design).
+
+    If no on_run_callback is supplied, uses the built-in deep-dive runner
+    that reads cfg from session_state.
+    """
+    on_run = on_run_callback or _default_deep_dive_runner
+    contents = queue_contents()
+    with st.sidebar:
+        st.markdown("---")
+        st.markdown("### Deep-dive queue")
+        if not contents:
+            st.caption(
+                "Mark interesting companies with **+ Deep dive** from anywhere "
+                "in the dashboard. Run them all at once from here."
+            )
+            return
+        st.caption(f"**{len(contents)}** companies queued")
+        for name in contents[:10]:
+            cols = st.columns([5, 1])
+            cols[0].markdown(
+                f"<div style='color:#cbd5e1;font-size:12px;padding:2px 0;'>"
+                f"• {name}</div>",
+                unsafe_allow_html=True,
+            )
+            if cols[1].button("✗", key=f"qx_{name[:30]}",
+                                help=f"Remove {name}"):
+                remove_from_queue(name)
+                st.rerun()
+        if len(contents) > 10:
+            st.caption(f"… and {len(contents) - 10} more")
+
+        c1, c2 = st.columns(2)
+        run_disabled = run_id is None
+        in_progress = st.session_state.get("deep_dive_in_progress", False)
+        if c1.button("Run dive", type="primary",
+                       disabled=run_disabled or in_progress,
+                       key="run_queue_btn",
+                       help="Run full ReAct loop on every queued company"):
+            on_run(list(contents))
+        if c2.button("Clear", key="clear_queue_btn"):
+            clear_queue()
+            st.rerun()
+
+
+def render_deep_dive_status() -> None:
+    """Show the running / completed status banner. Call once per page below the title."""
+    if st.session_state.get("deep_dive_in_progress"):
+        st.info(
+            ":hourglass_flowing_sand: Deep dive running in background. "
+            "Reload this page after a minute to see updated data."
+        )
+    res = st.session_state.get("deep_dive_result")
+    if res:
+        if res.get("error"):
+            st.error(f"Deep dive failed: {res['error']}")
+        else:
+            st.success(
+                f"Deep dive complete: **{len(res.get('deepened', []))}** companies deepened "
+                f"(${res.get('cost_usd', 0):.4f}). Their Investment Thesis pages now have "
+                "full earnings power + risk + scenario data."
+            )
+        st.session_state["deep_dive_result"] = None

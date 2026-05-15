@@ -25,6 +25,8 @@ if str(ROOT) not in sys.path:
 from design import apply_design  # noqa: E402
 apply_design()
 
+from design import deep_dive_button, render_queue_sidebar  # noqa: E402
+
 from dashboard_utils import (  # noqa: E402
     chart_analyst_consensus, chart_price_targets,
     chart_scenario_waterfall, chart_sensitivity_table,
@@ -43,6 +45,9 @@ cfg = st.session_state.get("cfg")
 if cfg is None or not cfg.get("chosen_run"):
     st.warning("Pick a run on the home page first.")
     st.stop()
+
+render_queue_sidebar(cfg.get("chosen_run"),
+                      on_run_callback=st.session_state.get("_run_queue_cb"))
 
 repo = RunRepository(Path(cfg["output_dir"]) / f"{cfg['chosen_run']}.db")
 view = repo.get_view(cfg["chosen_run"])
@@ -86,11 +91,15 @@ with c2:
 
 depth = extras.analysis_depth or "deep"
 if depth == "triage":
-    st.warning(
-        ":mag_right: This is a **triage-tier** finding — sparse data only. "
-        "Go to the Run page → Step 2 to commission a deep dive (full ReAct "
-        "with cited research, P/E, ROIC, scenario math, intelligence signals)."
-    )
+    banner_cols = st.columns([5, 1])
+    with banner_cols[0]:
+        st.warning(
+            "This is a **triage-tier** finding — sparse data only. "
+            "Queue it for a deep dive (full ReAct with cited research, "
+            "P/E, ROIC, scenario math, intelligence signals)."
+        )
+    with banner_cols[1]:
+        deep_dive_button(chosen_name, "triage", key_prefix="thesis_top")
 if extras.thesis_summary:
     st.info(f"**Headline thesis:** {extras.thesis_summary}")
 

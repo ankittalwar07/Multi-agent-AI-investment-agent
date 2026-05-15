@@ -17,6 +17,7 @@ if str(ROOT) not in sys.path:
 
 from design import apply_design  # noqa: E402
 apply_design()
+from design import render_queue_sidebar, render_deep_dive_status  # noqa: E402
 
 from investment_agent.config import get_settings  # noqa: E402
 from investment_agent.graph.build import Pipeline, RunOptions  # noqa: E402
@@ -29,6 +30,9 @@ cfg = st.session_state.get("cfg")
 if cfg is None:
     st.warning("Open the home page first to configure provider/model.")
     st.stop()
+
+render_queue_sidebar(cfg.get("chosen_run"))
+render_deep_dive_status()
 
 
 def _build_llm():

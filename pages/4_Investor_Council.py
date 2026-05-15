@@ -24,6 +24,9 @@ if str(ROOT) not in sys.path:
 
 from design import apply_design  # noqa: E402
 apply_design()
+from design import (  # noqa: E402
+    deep_dive_button, render_deep_dive_status, render_queue_sidebar,
+)
 
 from dashboard_utils import (  # noqa: E402
     CONSENSUS_COLORS, CONSENSUS_LABELS,
@@ -44,6 +47,9 @@ cfg = st.session_state.get("cfg")
 if cfg is None or not cfg.get("chosen_run"):
     st.warning("Pick a run on the home page first.")
     st.stop()
+
+render_queue_sidebar(cfg.get("chosen_run"))
+render_deep_dive_status()
 
 repo = RunRepository(Path(cfg["output_dir"]) / f"{cfg['chosen_run']}.db")
 view = repo.get_view(cfg["chosen_run"])
@@ -183,14 +189,23 @@ for tab, persona in zip(investor_tabs, COUNCIL):
         buys = rdf[rdf["Verdict"].isin(["STRONG_BUY", "BUY"])]
         if not buys.empty:
             st.markdown(f"#### {persona.name}'s BUYs ({len(buys)})")
+            # Lookup analysis_depth per company name
+            depth_by_name = {c.name: (c.extras.analysis_depth or "triage")
+                              for c in view.companies}
             for _, row in buys.head(15).iterrows():
                 with st.container(border=True):
-                    c1, c2, c3 = st.columns([2, 1, 5])
+                    c1, c2, c3, c4 = st.columns([2, 1, 4, 1.2])
                     c1.markdown(f"**{row['Company']}** ({row['Ticker']})")
                     c1.caption(row["Component"])
                     c2.markdown(rec_badge(row["Verdict"]) + f"<br><small>{row['Conviction']}</small>",
                                 unsafe_allow_html=True)
                     c3.write(row["Reasoning"])
+                    with c4:
+                        deep_dive_button(
+                            row["Company"],
+                            depth_by_name.get(row["Company"], "triage"),
+                            key_prefix=f"council_{persona.key}",
+                        )
 
         with st.expander(f"Full ranking ({len(rdf)} names)"):
             st.dataframe(rdf, use_container_width=True, hide_index=True)
