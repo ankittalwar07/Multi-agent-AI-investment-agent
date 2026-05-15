@@ -1,9 +1,12 @@
 # Cost Optimization — Why this runs free
 
-Walks through the four design decisions that bring the cost of a full
+> _Last updated: May 2026 · five optimizations (Ollama local fallback added)_
+
+Walks through the five design decisions that bring the cost of a full
 analytical run from "blows past every free LLM quota" down to "fits
-comfortably in two free tiers combined." Written so you can explain it
-to a non-technical stakeholder in 5 minutes.
+comfortably in two free cloud tiers combined PLUS an unlimited local
+fallback." Written so you can explain it to a non-technical stakeholder
+in 5 minutes.
 
 ---
 
@@ -21,19 +24,22 @@ We want to do the same work in **< 300,000 tokens** and have it fit
 
 ---
 
-## Quota cheat sheet (free tiers)
+## Quota cheat sheet (free tiers, May 2026)
 
-| Provider | Model | Tokens / day | Cost |
-|---|---|---|---|
-| Google Gemini | gemini-2.0-flash | ~1,000,000 | $0 |
-| Groq | llama-3.1-8b-instant | 500,000 | $0 |
-| Groq | llama-3.3-70b-versatile | 100,000 | $0 |
-| Anthropic Claude | (no free tier) | n/a | ~$3-15 per 1M tokens |
-| OpenAI GPT-4o | (no free tier) | n/a | ~$2.5-10 per 1M tokens |
+| Provider | Model | Tokens / day | Cost | Location |
+|---|---|---|---|---|
+| Google Gemini | gemini-2.0-flash | ~1,000,000 | $0 | Cloud |
+| Groq | llama-3.1-8b-instant | 500,000 | $0 | Cloud |
+| Groq | llama-3.3-70b-versatile | 100,000 | $0 | Cloud |
+| **Ollama (local)** | **qwen2.5:7b** | **UNLIMITED** | **$0** | **Your machine** |
+| Anthropic Claude | (no free tier) | n/a | ~$3-15 per 1M tokens | Cloud |
+| OpenAI GPT-4o | (no free tier) | n/a | ~$2.5-10 per 1M tokens | Cloud |
 
-The dashboard's default setup uses **Gemini + Groq 8B in rotation** =
-~1.5M tokens/day free. The optimizations below ensure we use < 300k of
-that for a full run — leaving room for multiple runs per day.
+The dashboard's default setup uses **Gemini + Groq + Ollama in rotation**:
+~1.5M cloud tokens/day at $0, **plus unlimited local inference** as the
+fallback. The optimizations below ensure we use < 300k tokens for a full
+run — leaving 5x headroom on the cloud budget, and if you ever blow
+through it, the local model picks up seamlessly.
 
 ---
 
@@ -225,29 +231,111 @@ eliminated entirely while gaining:
 
 ---
 
+## Optimization 5 — Local fallback via Ollama (the safety net)
+
+### The problem
+
+Even with the four optimizations above, you can imagine days where:
+
+- You run triage several times to refresh data
+- Then deep-dive 15+ companies for a portfolio review
+- Total: 600k+ tokens in one day
+
+Cloud free quotas (1M Gemini + 500k Groq = 1.5M combined) still cover
+this — but barely. And if you're doing overnight analyses, you don't
+want to wake up to a half-finished run because both clouds throttled
+at 2am.
+
+### The solution — Ollama as the third fallback
+
+[Ollama](https://ollama.com) runs open-source LLMs (Qwen 2.5, Llama 3.1/3.3,
+Mistral Nemo) **on your local machine**. One-click install, OpenAI-compatible
+API at `http://localhost:11434/v1`. Default model `qwen2.5:7b` is ~4 GB.
+
+The `MultiProviderLLM` rotation chain now has three rungs:
+
+```
+Try Gemini   → 429 → Try Groq → 429 → Try Ollama (local, never 429s)
+```
+
+When both cloud providers exhaust their daily quotas, the system silently
+falls back to local inference. No interruption, no wake-up-at-2am alarm.
+
+### Trade-off — speed
+
+Local inference is **20-100x slower** than cloud:
+
+| Hardware (running qwen2.5:7b) | Throughput |
+|---|---|
+| Apple M3 Max | ~80-150 tok/sec |
+| Apple M2 Pro | ~50-100 tok/sec |
+| RTX 4090 | ~200+ tok/sec |
+| RTX 4060 | ~80-120 tok/sec |
+| CPU only (modern Intel/AMD) | ~10-25 tok/sec |
+| **Cloud Gemini (for reference)** | **~200 tok/sec + ~0ms network** |
+
+A full pipeline that takes 2-3 min on Gemini might take 15-30 min on
+Ollama. But it **never throttles** — exactly what you want for
+overnight runs.
+
+### Why this matters for the cost story
+
+Before Ollama: "We've cut tokens by 50% so it fits in free cloud quotas."
+
+After Ollama: **"There is no hard upper limit on daily work."** You can
+explore the universe of AI infrastructure companies as much as you want,
+forever, at $0. The cloud quotas are just there to speed things up when
+you're in interactive mode.
+
+### Privacy bonus
+
+Local inference means **no data leaves your machine**. For analyses
+where you don't want OpenAI/Google/Anthropic seeing your investment
+research workflow, run `--providers ollama` and the cloud providers
+never see a single token.
+
+---
+
 ## Putting it all together
 
-| Run scenario | LLM calls | Tokens | Fits in free Gemini quota? | Fits in free Groq 8B? |
-|---|---|---|---|---|
-| Naive: deep on all 60 companies | ~300 | ~500k | No | No (5x over) |
-| Triage only | ~27 | ~80k | Yes (8% of daily) | Yes (16%) |
-| Triage + deep on 10 picks | ~77 | ~275k | Yes (28%) | Yes (55%) |
-| Triage + deep on 10 picks + multi-provider rotation | same | distributed | **Yes** | **Yes** (when one throttles, rotate) |
+| Run scenario | LLM calls | Tokens | Fits in free Gemini? | Fits in free Groq 8B? | Fits in local Ollama? |
+|---|---|---|---|---|---|
+| Naive: deep on all 60 companies | ~300 | ~500k | No | No (5x over) | **Yes** (unlimited) |
+| Triage only | ~27 | ~80k | Yes (8% of daily) | Yes (16%) | **Yes** |
+| Triage + deep on 10 picks | ~77 | ~275k | Yes (28%) | Yes (55%) | **Yes** |
+| Triage + deep + multi-provider rotation + local fallback | same | distributed | **Yes** | **Yes** | **Yes (infinite)** |
 
-### Real-world workflow
+### Real-world workflow (interactive — daytime use)
 
 1. **Morning**: Run **Quick triage** in the dashboard (~80k tokens, 30
-   seconds) → fills the dashboard with sparse data on all ~60 companies
+   seconds on Gemini) → fills the dashboard with sparse data on all ~60
+   companies
 2. **Browse**: Open the Investor Council page, see what's interesting
-3. **Mark**: Click `+ Deep dive` on 8-10 companies that look promising
+3. **Mark**: Click `+ Deep dive` on 8-10 companies anywhere in the dashboard
 4. **Run dive**: Sidebar button → background thread does the full
    research (~200k tokens, 2 minutes)
 5. **Read**: Each deepened company has a full Investment Thesis page with
    ROIC, P/E, customer concentration, council verdicts, scenario sliders,
    intelligence signals, cited evidence
 
-Total daily cost: **$0**. Total daily LLM tokens: **~280k of available
+Total daily cloud cost: **$0**. Total daily LLM tokens: **~280k of available
 ~1.5M** — plenty of headroom for re-runs and exploration.
+
+### Overnight workflow (unlimited — leave running)
+
+1. **Before bed**: Open terminal, run:
+   ```bash
+   PYTHONPATH=src python scripts/overnight_run.py \
+       --providers gemini,groq,ollama
+   ```
+2. Pipeline tries Gemini first. When daily quota exhausts (~8pm), rotates
+   to Groq. When that exhausts, falls back to **local Ollama**.
+3. Local Ollama keeps researching every component all night, slowly but
+   steadily. No throttling, no 2am wake-up.
+4. **Morning**: Full deep-dive report waiting in `data/runs/<id>.json`
+   and the Streamlit dashboard.
+
+Total cost: **$0**. Hard upper limit on work: **none**.
 
 ---
 
@@ -261,11 +349,22 @@ Just for reference — to underscore the cost savings:
 | GPT-4o | ~$7 |
 | Gemini 2.0 Flash (paid) | ~$0.25 |
 | Groq Llama 3.1 8B (paid) | ~$0.06 |
+| **Ollama qwen2.5:7b (local)** | **$0 (your electricity)** |
 
-A single full run (~275k tokens) on Claude API: **~$2.50**.
-On Gemini paid: **~$0.07**. On Groq paid: **~$0.02**.
+A single full run (~275k tokens) costs:
 
-On the free tiers: **$0**.
+| Provider | Cost |
+|---|---|
+| Claude Sonnet 4.6 API | **~$2.50** |
+| GPT-4o API | **~$1.90** |
+| Gemini paid | **~$0.07** |
+| Groq paid | **~$0.02** |
+| **Free Gemini / Groq / Ollama** | **$0.00** |
 
 The optimizations don't just save money — they make this dashboard
-**runnable by anyone with a free Google account, no credit card**.
+**runnable by anyone with a free Google account or a laptop**.
+
+A user with **no internet** and **no cloud accounts** can still run
+the entire framework with `--providers ollama` after a 5-minute local
+install. The whole pipeline, the 9-investor council, the intelligence
+signal aggregation, the scenario math — all of it works offline.

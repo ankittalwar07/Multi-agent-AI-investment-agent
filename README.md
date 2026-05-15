@@ -1,5 +1,7 @@
 # AI Infrastructure — Investment Brief
 
+> _Last updated: May 2026 · architecture v4 (two-tier triage + 9-investor council + intelligence agent + local-LLM fallback)_
+
 A multi-agent AI dashboard that walks the entire AI-infrastructure value chain
 (from copper and rare earths up through ASML's EUV scanners, NVIDIA GPUs,
 hyperscaler clouds, and Anthropic's Claude) and surfaces the companies most
@@ -9,6 +11,10 @@ investors and signals from government policy and political trading.
 > **Built for the savvy investor hunting** sole-source bottlenecks,
 > capacity-constrained incumbents, and mispriced private positions across
 > the AI stack — not generic "what's hot" suggestions.
+
+Runs on **five LLM provider options**: Google Gemini (free), Groq Llama (free),
+**local Ollama** (free, no rate limits, full privacy), Anthropic Claude (paid),
+OpenAI GPT (paid) — auto-rotates between them when one throttles.
 
 ---
 
@@ -74,6 +80,22 @@ The dashboard is powered by **eight cooperating AI agents** plus deterministic
 analysis layers. Each agent has a narrow specialty and feeds the next:
 
 ```
+   ┌───────────────────── LLM PROVIDER LAYER ────────────────────────────┐
+   │                                                                     │
+   │   MultiProviderLLM                                                  │
+   │   rotates on 429 / quota exhausted                                  │
+   │                                                                     │
+   │     ╔════════════╗      ╔════════════╗      ╔════════════╗          │
+   │     ║   Gemini   ║ ─►   ║    Groq    ║ ─►   ║   Ollama   ║          │
+   │     ║ 2.0 Flash  ║ 429  ║ Llama 3.1  ║ 429  ║ qwen2.5:7b ║          │
+   │     ║ ~1M tok/d  ║      ║ ~500k tok/d║      ║ unlimited  ║          │
+   │     ║ cloud free ║      ║ cloud free ║      ║ local free ║          │
+   │     ╚════════════╝      ╚════════════╝      ╚════════════╝          │
+   │           (paid Claude / GPT-4o also available, single-provider)    │
+   └─────────────────────────────────────────────────────────────────────┘
+                                  ▲
+                                  │ every agent call goes through here
+                                  │
                 ┌──────────────┐
                 │  Decomposer  │  Breaks the AI stack into
                 └──────┬───────┘  ~25 components from a seed taxonomy
@@ -84,7 +106,7 @@ analysis layers. Each agent has a narrow specialty and feeds the next:
 │  Outputs: 3-5 incumbents with sparse moat data       │
 └──────────────────────────────────────────────────────┘
                        │
-                       ▼  USER picks high-conviction names from triage
+                       ▼  USER picks high-conviction names via deep-dive queue
 ┌──────────────────────────────────────────────────────┐
 │  Deep-Dive Researcher  (full ReAct + web search)     │  ← TIER 2 (expensive)
 │  Outputs: full earnings power, risk, scenario data   │
@@ -94,18 +116,21 @@ analysis layers. Each agent has a narrow specialty and feeds the next:
 ┌──────────────────────────────────────────────────────┐
 │  Concentration Analyzer  (deterministic rubric)      │
 │  Scores moat strength 0-100 across 6 dimensions      │
+│  ── PURE PYTHON, ZERO LLM TOKENS ──                  │
 └──────────────────────────────────────────────────────┘
                        │
                        ▼
 ┌──────────────────────────────────────────────────────┐
 │  Intelligence Agent  (government + political flows)  │
 │  Pulls CHIPS Act / DoD / Senate EFD / SEC EDGAR      │
+│  ── DETERMINISTIC SIGNAL AGGREGATOR ──               │
 └──────────────────────────────────────────────────────┘
                        │
                        ▼
 ┌──────────────────────────────────────────────────────┐
 │  Council of Investors  (9 personas)                  │
 │  Each persona votes with their distinct lens         │
+│  ── PURE PYTHON RUBRICS, ZERO LLM TOKENS ──          │
 └──────────────────────────────────────────────────────┘
                        │
                        ▼
@@ -114,8 +139,13 @@ analysis layers. Each agent has a narrow specialty and feeds the next:
 └──────────────────────────────────────────────────────┘
                        │
                        ▼
-              SQLite + Streamlit dashboard
+              SQLite (one DB per run) + Streamlit dashboard
 ```
+
+**Three of the seven stages are pure Python** (Concentration Analyzer,
+Intelligence Agent, Council). Only the Decomposer, Researchers, and
+Synthesizer hit the LLM provider layer — which is why the system can
+run a full ~60-company analysis in ~75 LLM calls total.
 
 ### What each agent does, in plain English
 
@@ -330,13 +360,13 @@ always paired with a bear case.
 
 ## Quickstart — running it yourself
 
-### Option A: Free path with Gemini + Groq (recommended)
+### Option A: Free cloud path with Gemini + Groq (recommended)
 
-You can run the full pipeline at $0 cost using two free LLM providers in
+Run the full pipeline at $0 cost using two free cloud LLM providers in
 rotation. No credit card required.
 
 ```bash
-# 1. Get the free keys (30 seconds each):
+# 1. Get free keys (30 seconds each):
 #    Gemini: https://aistudio.google.com/apikey
 #    Groq:   https://console.groq.com/keys
 
@@ -351,11 +381,50 @@ PYTHONPATH=src python scripts/test_groq.py
 streamlit run streamlit_app.py
 ```
 
-Then in the sidebar pick **Provider: `multi`** (rotates Gemini and Groq) and
-run a **Quick triage**. Mark the names you care about with the **+ Deep dive**
-button and click **Run dive** in the sidebar.
+In the sidebar pick **Provider: `multi`** (rotates Gemini and Groq) and run a
+**Quick triage**. Mark the names you care about with the **+ Deep dive**
+button anywhere in the dashboard, then click **Run dive** in the sidebar.
 
-### Option B: Demo mode (no API keys at all)
+### Option B: Local Ollama (no rate limits, full privacy)
+
+Best for **overnight runs** where you don't want to worry about quotas, or
+when you want the data to never leave your machine.
+
+```bash
+# 1. Install Ollama (5 minutes, one-click)
+#    https://ollama.com/download   (macOS / Linux / Windows)
+
+# 2. Pull a model
+ollama pull qwen2.5:7b        # ~4 GB; best JSON output of small models
+# Optional bigger models if you have the RAM/VRAM:
+# ollama pull qwen2.5:14b      # ~9 GB
+# ollama pull mistral-nemo:12b # ~7 GB
+
+# 3. Verify
+PYTHONPATH=src python scripts/test_ollama.py
+
+# 4. Launch the dashboard
+streamlit run streamlit_app.py
+```
+
+In the sidebar pick **Provider: `ollama`** (or `multi` — Ollama auto-joins
+the rotation chain as the unlimited fallback). Model auto-fills as
+`qwen2.5:7b`.
+
+**Trade-off:** Local inference is 20-100x slower than cloud (full triage
+takes 8-30 min depending on hardware vs. ~2 min on Gemini). But **zero
+rate limits, zero cost, full privacy** — perfect for hit-run-once-walk-away
+overnight sessions.
+
+| Hardware | Triage (25 components) | Deep dive on 10 picks |
+|---|---|---|
+| Apple M3 Pro/Max | ~8-12 min | ~25-40 min |
+| Apple M1/M2 Pro | ~12-20 min | ~40-60 min |
+| RTX 4060/4070 | ~6-10 min | ~20-35 min |
+| RTX 4090 | ~4-6 min | ~12-20 min |
+| CPU only | ~25-40 min | ~80-120 min |
+
+### Option C: Demo mode (no API keys, no install)
 
 ```bash
 streamlit run streamlit_app.py
@@ -365,16 +434,21 @@ Toggle **Demo mode** ON in the sidebar. The pipeline runs against
 hand-crafted illustrative data — 62 companies across 25 components — so
 you can evaluate the framework and UI without spending any tokens.
 
-### Option C: Overnight CLI runner
+### Option D: Overnight CLI runner
 
 For really long runs where you want to hit "go" once and walk away:
 
 ```bash
-PYTHONPATH=src python scripts/overnight_run.py
+# Auto-detects which providers are available
+PYTHONPATH=src python scripts/overnight_run.py --providers gemini,groq,ollama
+
+# Or local-only (no internet needed):
+PYTHONPATH=src python scripts/overnight_run.py --providers ollama
 ```
 
-Persists progress continuously, sleeps when both providers are throttled,
-resumes from where it left off if killed:
+Persists progress continuously, rotates between providers on rate limits,
+sleeps when cloud providers are throttled (Ollama keeps going), resumes
+from where it left off if killed:
 
 ```bash
 PYTHONPATH=src python scripts/overnight_run.py --resume <run_id>

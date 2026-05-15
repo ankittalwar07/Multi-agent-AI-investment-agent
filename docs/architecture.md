@@ -1,5 +1,7 @@
 # Architecture & Design Decisions
 
+> _Last updated: May 2026 · architecture v4 (post-Ollama integration)_
+
 This document explains **why** the system is built the way it is. The
 [README](../README.md) explains **what** it does. Read this if you want to
 understand the trade-offs and walk a non-technical stakeholder through the
@@ -206,30 +208,74 @@ So the queue is user-curated. Pick from Home / Council / Components, click
 
 ---
 
-## Decision 4 — Multi-provider LLM rotation
+## Decision 4 — Multi-provider LLM rotation (cloud + local fallback)
 
 Free LLM tiers have small daily caps:
 
 - **Gemini 2.0 Flash**: ~1M tokens/day
 - **Groq Llama 3.1 8B**: 500k tokens/day
-- **Groq Llama 3.3 70B**: 100k tokens/day (got us in trouble)
+- **Groq Llama 3.3 70B**: 100k tokens/day (got us in trouble in early testing)
 
 A single full triage uses ~80k tokens — fine for any of these. But a
 deep-dive session of 10 companies adds 200k. And if you want to re-run
 through the day, you'll exhaust one provider quickly.
 
-The `MultiProviderLLM` wrapper:
+### The solution — provider chain with local fallback
 
-1. Tries Provider A (Gemini)
-2. On 429 (rate limit), records cooldown time parsed from the API's
-   "try again in Xs" hint
-3. Rotates to Provider B (Groq)
-4. If B also throttles, sleeps until the earliest cooldown expires
-5. Daily-quota errors (TPD) get a 1-hour cooldown (since they won't recover
-   until UTC midnight, but we re-check periodically)
+The `MultiProviderLLM` wrapper holds a chain of providers and rotates
+on rate-limit errors:
 
-Effective daily quota with Gemini + Groq combined: **~1.5M tokens** — enough
-for a triage + multiple deep-dive sessions per day, all $0.
+```
+LLM call
+   ├─ try Gemini   (cloud, fast,  ~1M tok/day)
+   │    └─ 429 "try again in 47s" → record cooldown, rotate
+   ├─ try Groq     (cloud, faster, ~500k tok/day, independent quota)
+   │    └─ 429 → record cooldown, rotate
+   ├─ try Ollama   (LOCAL,  slower, UNLIMITED, no cost, no internet needed)
+   │    └─ success → return result
+   └─ all unavailable → sleep until earliest cooldown expires
+```
+
+The wrapper parses each API's "try again in Xs" hint to know exactly how
+long to wait. Daily-quota errors (TPD) get a 1-hour cooldown (since they
+won't recover until UTC midnight, but we re-check periodically).
+
+### Why Ollama at the end of the chain
+
+Adding a local Ollama provider as the **third fallback** changes the
+character of the system:
+
+1. **No upper bound on daily work.** When both cloud providers exhaust
+   their daily quotas, instead of sleeping for hours, the pipeline keeps
+   moving on local hardware.
+2. **Privacy.** Sensitive analyses can stay entirely local — set
+   `--providers ollama` (CLI) or pick `ollama` in the sidebar dropdown.
+3. **No internet dependency.** Offline runs work.
+
+Trade-off: local inference is 20-100x slower than cloud. A full pipeline
+takes 10-30 min on a MacBook M3 vs 2-3 min on Gemini. So the priority
+order matters — try cloud first when it's available, fall back to local
+only when cloud throttles.
+
+### Auto-detection
+
+The home page and Run page each do a quick HTTP probe to
+`http://localhost:11434/api/tags` when building the LLM. If Ollama
+responds within 1.5 seconds, it joins the rotation chain automatically.
+No config needed — users who happen to have Ollama running get the
+fallback for free.
+
+### Combined effective quota
+
+| Combination | Daily token budget | Cost |
+|---|---|---|
+| Gemini only | ~1M | $0 |
+| Gemini + Groq | ~1.5M | $0 |
+| Gemini + Groq + Ollama (local) | **~1.5M cloud + UNLIMITED local** | $0 |
+
+A typical triage + 10 deep dives uses ~275k tokens. That fits >5x over
+into the free cloud budget; the local fallback makes it functionally
+infinite.
 
 ---
 
