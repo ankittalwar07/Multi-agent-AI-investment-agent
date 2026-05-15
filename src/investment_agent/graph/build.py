@@ -19,6 +19,7 @@ from ..agents.component_researcher import ComponentResearcher, ResearchResult
 from ..agents.concentration_analyzer import ConcentrationAnalyzer
 from ..agents.decomposer import Decomposer
 from ..agents.synthesizer import Synthesizer
+from ..agents.triage_researcher import TriageResearcher, triage_to_research_result
 from ..config import Settings
 from ..council.engine import company_to_view, council_summary, run_council
 from ..intelligence import run_intelligence
@@ -42,6 +43,7 @@ class RunOptions:
     max_components: int | None = None
     output_dir: Path | None = None
     resume_run_id: str | None = None  # if set, resume this run instead of creating new
+    mode: str = "triage"  # 'triage' = cheap one-call/component, 'deep' = full ReAct loop
 
 
 _RESEARCHABLE_STATUSES = {"pending", "researching", "error", "rate_limited"}
@@ -192,17 +194,30 @@ class Pipeline:
             self._emit(repo, rid, "info", "researcher",
                        f"researching {len(components_to_research)}/{len(components)} components")
 
-        # ----- Component Researchers (fan-out) -----
-        researcher = ComponentResearcher(
-            llm=llm,
-            tools=tools,
-            max_searches=self.settings.max_searches_per_researcher,
-            max_fetches=self.settings.max_fetches_per_researcher,
-        )
+        # ----- Researcher dispatch (triage vs deep) -----
+        triage_only = (opts.mode == "triage")
+        if triage_only:
+            triage = TriageResearcher(llm=llm, seed_tool=seed_tool)
+        else:
+            researcher = ComponentResearcher(
+                llm=llm,
+                tools=tools,
+                max_searches=self.settings.max_searches_per_researcher,
+                max_fetches=self.settings.max_fetches_per_researcher,
+            )
 
         def _research_one(component) -> ResearchResult:
             repo.set_component_status(component_ids[component.name], "researching")
-            self._emit(repo, rid, "info", "researcher", f"researching: {component.name}")
+            mode_label = "triage" if triage_only else "deep"
+            self._emit(repo, rid, "info", "researcher",
+                       f"{mode_label}: {component.name}")
+            if triage_only:
+                t = triage.run(
+                    component_name=component.name,
+                    component_category=component.category,
+                    component_description=component.description,
+                )
+                return triage_to_research_result(t)
             return researcher.run(
                 component_name=component.name,
                 component_category=component.category,
@@ -477,6 +492,202 @@ class Pipeline:
             result = self.run(resume_opts)
 
         return result
+
+    def deep_dive_companies(
+        self, run_id: str, company_names: list[str], output_dir: Path | None = None,
+    ) -> dict:
+        """Run the full Deep Dive Researcher only on the named companies.
+
+        After triage, the user picks high-conviction names and we run the
+        expensive ReAct-loop researcher on JUST those — typically 5-10
+        companies vs 60+ in the full universe. Token-cost ~10x cheaper than
+        running deep on everything.
+
+        Returns a summary dict: {requested, deep_done, errors, cost_usd}.
+        """
+        output_dir = Path(output_dir or self.settings.run_output_dir)
+        repo_path = output_dir / f"{run_id}.db"
+        if not repo_path.exists():
+            raise RuntimeError(f"Run {run_id} not found at {repo_path}")
+        repo = RunRepository(repo_path)
+        view = repo.get_view(run_id)
+
+        # Map name -> existing company row (we only deepen what already exists in triage)
+        targets = {c.name: c for c in view.companies if c.name in company_names}
+        missing = [n for n in company_names if n not in targets]
+
+        tools = _make_tools(self.settings.seed_file)
+        llm = self.llm_factory()
+        researcher = ComponentResearcher(
+            llm=llm,
+            tools=tools,
+            max_searches=self.settings.max_searches_per_researcher,
+            max_fetches=self.settings.max_fetches_per_researcher,
+        )
+
+        comp_name_by_id = {c.id: c.name for c in view.components}
+        comp_obj_by_id = {c.id: c for c in view.components}
+
+        cost = 0.0
+        deepened: list[str] = []
+        errs: list[str] = []
+
+        for name in company_names:
+            if name not in targets:
+                continue
+            co = targets[name]
+            comp = comp_obj_by_id.get(co.component_id)
+            if not comp:
+                continue
+            self._emit(repo, run_id, "info", "deep_dive",
+                       f"deepening: {name}")
+            try:
+                res = researcher.run(
+                    component_name=comp.name,
+                    component_category=comp.category or "",
+                    component_description=comp.description or "",
+                )
+                cost += res.cost_usd
+                # Find the matching company in the deep result
+                match = next(
+                    (f for f in res.companies
+                     if f.name.lower().split()[0] == name.lower().split()[0]),
+                    None,
+                )
+                if not match and res.companies:
+                    match = res.companies[0]  # fallback: first finding
+                if not match:
+                    errs.append(f"{name}: deep dive returned no findings")
+                    continue
+                # Merge the deep finding's extras into the existing company row
+                deep_extras = dict(match.extras or {})
+                deep_extras["analysis_depth"] = "deep"
+                # Preserve council/intel fields already on the row
+                existing = co.extras
+                preserve = ["council_verdicts", "council_summary",
+                             "intelligence_signals", "intelligence_summary"]
+                for k in preserve:
+                    v = getattr(existing, k, None)
+                    if v:
+                        deep_extras[k] = (
+                            v if isinstance(v, (list, dict)) else dict(v)
+                        )
+                repo.update_company_extras(co.id, deep_extras)
+                # Add the new evidence rows
+                for ev in match.evidence:
+                    repo.add_evidence(
+                        company_id=co.id,
+                        claim=ev.claim,
+                        source_url=ev.source_url,
+                        source_name=ev.source_name,
+                        snippet=ev.snippet,
+                        tool_name=ev.tool_name,
+                    )
+                deepened.append(name)
+                self._emit(repo, run_id, "info", "deep_dive",
+                           f"{name}: deep extras updated (cost=${res.cost_usd:.4f})")
+            except Exception as e:
+                err = f"{name}: {str(e)[:200]}"
+                errs.append(err)
+                self._emit(repo, run_id, "error", "deep_dive", err)
+
+        repo.add_cost(run_id, cost)
+
+        # Re-run scoring + intel + council on the deepened companies
+        # (their extras changed, so verdicts / scores may shift)
+        if deepened:
+            self._refresh_scoring_for(repo, run_id)
+
+        return {
+            "requested": company_names,
+            "missing": missing,
+            "deepened": deepened,
+            "errors": errs,
+            "cost_usd": cost,
+        }
+
+    def _refresh_scoring_for(self, repo: RunRepository, run_id: str) -> None:
+        """Re-run concentration analyzer + intelligence + council on the
+        full company set (cheap — all deterministic / Python rubrics)."""
+        from ..agents.component_researcher import (
+            CompanyFinding, EvidenceRecord, ResearchResult,
+        )
+        view = repo.get_view(run_id)
+        comp_name_by_id = {c.id: c.name for c in view.components}
+        # Reconstruct ResearchResults for all components
+        by_comp: dict[str, list[CompanyFinding]] = {}
+        for co in view.companies:
+            comp_name = comp_name_by_id.get(co.component_id, "?")
+            by_comp.setdefault(comp_name, []).append(
+                CompanyFinding(
+                    name=co.name, is_public=co.is_public, ticker=co.ticker,
+                    hq_country=co.hq_country,
+                    market_share_pct=co.market_share_pct,
+                    market_share_bucket=co.market_share_bucket,
+                    single_source=bool(co.single_source),
+                    moat_types=co.moat_types,
+                    switching_costs=co.switching_costs,
+                    customer_concentration=co.customer_concentration,
+                    demand_signal=co.demand_signal,
+                    valuation_usd=co.valuation_usd,
+                    notes=co.notes,
+                    extras=(co.extras.model_dump() if hasattr(co.extras, "model_dump") else dict(co.extras or {})),
+                    evidence=[],
+                )
+            )
+        results = [
+            ResearchResult(component_name=cn, companies=cs,
+                           cost_usd=0.0, search_count=0, fetch_count=0)
+            for cn, cs in by_comp.items()
+        ]
+
+        analyzer = ConcentrationAnalyzer(llm=self.llm_factory(), llm_rationale=False)
+        scored, _ = analyzer.score_all([(r.component_name, r.companies) for r in results])
+
+        co_id_by_key = {(comp_name_by_id.get(co.component_id, "?"), co.name): co.id
+                         for co in view.companies}
+
+        for s in scored:
+            cid = co_id_by_key.get((s.component_name, s.finding.name))
+            if not cid:
+                continue
+            repo.set_score(
+                company_id=cid,
+                sole_source_pts=s.score.sole_source_pts,
+                share_pts=s.score.share_pts, ip_pts=s.score.ip_pts,
+                regulatory_pts=s.score.regulatory_pts,
+                switching_pts=s.score.switching_pts,
+                demand_pts=s.score.demand_pts,
+                composite=s.score.composite,
+                rubric_version=RUBRIC_VERSION,
+                rationale=s.score.rationale,
+            )
+            # Refresh intel + council
+            view2 = repo.get_view(run_id)  # re-read for updated extras
+            co_match = next((c for c in view2.companies if c.id == cid), None)
+            if co_match:
+                signals, summary = run_intelligence(
+                    co_match.name, co_match.ticker,
+                    demo_data=DEMO_INTELLIGENCE if self._mock_mode_for(repo, run_id) else None,
+                )
+                if signals or summary.total_signals:
+                    repo.update_company_extras(cid, {
+                        "intelligence_signals": [sig.model_dump(mode="json") for sig in signals],
+                        "intelligence_summary": summary.model_dump(),
+                    })
+                    if isinstance(s.finding.extras, dict):
+                        s.finding.extras["intelligence_summary"] = summary.model_dump()
+            view3 = company_to_view(s.finding, s.score, s.component_name)
+            verdicts = run_council(view3)
+            cs_summary = council_summary(verdicts)
+            repo.update_company_extras(cid, {
+                "council_verdicts": [v.model_dump() for v in verdicts],
+                "council_summary": cs_summary,
+            })
+
+    def _mock_mode_for(self, repo: RunRepository, run_id: str) -> bool:
+        run = repo.get_run(run_id)
+        return bool(run and run.mock)
 
     def _finalize(
         self, state: RunState, repo: RunRepository, db_path: Path, output_dir: Path

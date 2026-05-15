@@ -65,28 +65,30 @@ def _launch(opts: RunOptions, until_done: bool = False) -> str:
     return result.run_id
 
 
-# ============== Top controls ==============
-st.markdown("### Start a run")
+# ============== Two-tier flow ==============
+st.markdown("### Step 1 — Quick triage")
 st.caption(
-    "Pick **Start new run** for a one-shot pass. Pick **Run until done** to "
-    "auto-resume on rate limits — leave the tab open and the pipeline keeps "
-    "going until every component is researched, even if it takes hours."
+    "One LLM call per component (~25 calls total) gets a sparse company list "
+    "with moat / share / sole-source / one-line thesis. Cheap (~5x less tokens "
+    "than deep dive). Use this to find what's interesting, then deep-dive on "
+    "the names you actually care about."
 )
 
 colA, colB, colC = st.columns([1, 1, 2])
 
 with colA:
-    if st.button("Start new run", type="secondary"):
+    if st.button("Quick triage", type="primary"):
         opts = RunOptions(
             provider=cfg["provider"], model=cfg["model"], mock=cfg["mock"],
             max_components=cfg["max_components"],
+            mode="triage",
         )
         st.session_state["run_in_progress"] = True
         st.session_state["run_thread_result"] = {"run_id": None}
 
         def _target():
             try:
-                rid = _launch(opts, until_done=False)
+                rid = _launch(opts, until_done=True)  # auto-resume on rate limits
                 st.session_state["run_thread_result"]["run_id"] = rid
             except Exception as e:
                 st.session_state["run_thread_result"]["error"] = str(e)
@@ -97,15 +99,12 @@ with colA:
         st.rerun()
 
 with colB:
-    overnight_disabled = cfg["mock"]
-    if st.button(
-        "Run until done", type="primary", disabled=overnight_disabled,
-        help="Auto-resumes on rate limits. Best with --provider multi (Gemini + Groq fallback).",
-    ):
-        # Force multi-provider for overnight runs (best coverage of free quotas)
+    if st.button("Full deep dive (slow)", type="secondary",
+                  help="Runs the full ReAct loop on every company. Use only when you have token budget."):
         opts = RunOptions(
-            provider="multi", model=None, mock=False,
+            provider=cfg["provider"], model=cfg["model"], mock=cfg["mock"],
             max_components=cfg["max_components"],
+            mode="deep",
         )
         st.session_state["run_in_progress"] = True
         st.session_state["run_thread_result"] = {"run_id": None}
@@ -124,12 +123,80 @@ with colB:
 
 with colC:
     if cfg["mock"]:
-        st.caption("_Demo mode is on — overnight run is disabled. Toggle Demo mode off to enable._")
+        st.caption("_Demo mode on — runs are instant on hand-crafted data._")
     elif cfg["provider"] != "multi":
         st.caption(
-            f"_Tip: switch Provider to **multi** for the best overnight experience — "
-            "auto-rotates between Gemini and Groq quotas._"
+            "_Tip: switch Provider to **multi** in the home sidebar — "
+            "rotates Gemini ↔ Groq when one throttles._"
         )
+
+# ============== Step 2 — Deep dive on selected ==============
+runs_for_dive = list_run_ids(cfg["output_dir"])
+if runs_for_dive:
+    latest_for_dive = runs_for_dive[0]
+    try:
+        latest_repo = RunRepository(Path(cfg["output_dir"]) / f"{latest_for_dive}.db")
+        latest_view = latest_repo.get_view(latest_for_dive)
+        triage_companies = [
+            c for c in latest_view.companies
+            if c.extras.analysis_depth == "triage"
+        ]
+        if triage_companies:
+            st.markdown("### Step 2 — Deep dive on selected companies")
+            st.caption(
+                f"You have {len(triage_companies)} triage-level companies in run "
+                f"`{latest_for_dive}`. Pick the ones worth a full ReAct-loop "
+                "analysis (P/E, ROIC, cited sources, scenario math, full thesis)."
+            )
+            options = [
+                f"{c.name} ({c.ticker or '—'})  ·  comp: {next((cp.name for cp in latest_view.components if cp.id == c.component_id), '?')}  ·  score: {(c.score.composite if c.score else 0):.0f}"
+                for c in sorted(
+                    triage_companies,
+                    key=lambda c: (c.score.composite if c.score else 0),
+                    reverse=True,
+                )
+            ]
+            picked = st.multiselect(
+                "Companies to deepen",
+                options,
+                max_selections=15,
+                placeholder="Pick 5-10 high-conviction names",
+            )
+            if st.button("Run deep dive on selected", type="primary",
+                          disabled=len(picked) == 0):
+                # Map back to company names
+                picked_names = [opt.split(" (")[0] for opt in picked]
+                st.session_state["run_in_progress"] = True
+                st.session_state["run_thread_result"] = {"run_id": None}
+
+                def _deepen():
+                    settings = get_settings()
+                    pipeline = Pipeline(settings=settings, llm_factory=_build_llm)
+                    try:
+                        result = pipeline.deep_dive_companies(
+                            latest_for_dive, picked_names,
+                            output_dir=cfg["output_dir"],
+                        )
+                        st.session_state["run_thread_result"]["run_id"] = latest_for_dive
+                        st.session_state["run_thread_result"]["deep_summary"] = result
+                    except Exception as e:
+                        st.session_state["run_thread_result"]["error"] = str(e)
+                    finally:
+                        st.session_state["run_in_progress"] = False
+
+                threading.Thread(target=_deepen, daemon=True).start()
+                st.rerun()
+
+        deep_summary = st.session_state.get("run_thread_result", {}).get("deep_summary")
+        if deep_summary:
+            st.success(
+                f"Deep dive complete: {len(deep_summary.get('deepened', []))} companies deepened "
+                f"(${deep_summary.get('cost_usd', 0):.4f} cost). "
+                + (f"Errors: {deep_summary.get('errors', [])[:2]}"
+                   if deep_summary.get('errors') else "")
+            )
+    except Exception:
+        pass
 
 # ============== Resume an existing partial run ==============
 runs = list_run_ids(cfg["output_dir"])

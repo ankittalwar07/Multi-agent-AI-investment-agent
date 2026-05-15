@@ -56,6 +56,8 @@ class MockProvider(LLMProvider):
 
         if agent == "decomposer":
             return self._decomposer_response()
+        if agent == "triage":
+            return self._triage_response(messages)
         if agent == "component_researcher":
             return self._researcher_response(messages, call_n, tools or [])
         if agent == "concentration_analyzer":
@@ -123,6 +125,39 @@ class MockProvider(LLMProvider):
         return LLMResponse(
             content=json.dumps(findings),
             usage=Usage(input_tokens=400, output_tokens=400, cost_usd=0.0),
+            finish_reason="stop",
+        )
+
+    def _triage_response(self, messages: list[LLMMessage]) -> LLMResponse:
+        """Sparse companies pulled from the same MOCK_FINDINGS table but
+        with only the triage-tier fields populated."""
+        component = self._detect_component(messages)
+        from .mock_data import findings_for_component
+
+        full = findings_for_component(component)
+        # Trim to triage shape: only the sparse fields
+        triage_companies = []
+        for c in full[:5]:
+            triage_companies.append({
+                "name": c.get("name"),
+                "ticker": c.get("ticker"),
+                "is_public": c.get("is_public"),
+                "hq_country": c.get("hq_country"),
+                "market_share_pct": c.get("market_share_pct"),
+                "market_share_bucket": c.get("market_share_bucket"),
+                "single_source": c.get("single_source", False),
+                "structure": (c.get("extras") or {}).get("structure"),
+                "supply_status": (c.get("extras") or {}).get("supply_status"),
+                "demand_signal": c.get("demand_signal"),
+                "moat_types": c.get("moat_types") or [],
+                "switching_costs": c.get("switching_costs"),
+                "thesis_one_liner": (c.get("extras") or {}).get("thesis_summary")
+                                       or c.get("notes") or "Mock triage finding.",
+                "valuation_usd": c.get("valuation_usd"),
+            })
+        return LLMResponse(
+            content=json.dumps({"companies": triage_companies}),
+            usage=Usage(input_tokens=200, output_tokens=300, cost_usd=0.0),
             finish_reason="stop",
         )
 

@@ -159,6 +159,11 @@ class CompanyExtras(BaseModel):
     intelligence_signals: list[dict] = Field(default_factory=list)
     intelligence_summary: dict = Field(default_factory=dict)
 
+    # Tier-1 vs Tier-2 analysis depth (for cost-optimized pipeline).
+    # 'triage' = sparse data from a single quick-pass LLM call.
+    # 'deep'   = full ReAct loop with web search + all earnings/risk/scenario data.
+    analysis_depth: str = "triage"
+
 
 class CompanyRow(BaseModel):
     id: str

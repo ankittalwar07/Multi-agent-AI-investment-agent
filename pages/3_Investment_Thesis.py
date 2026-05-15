@@ -84,6 +84,13 @@ with c2:
         unsafe_allow_html=True,
     )
 
+depth = extras.analysis_depth or "deep"
+if depth == "triage":
+    st.warning(
+        ":mag_right: This is a **triage-tier** finding — sparse data only. "
+        "Go to the Run page → Step 2 to commission a deep dive (full ReAct "
+        "with cited research, P/E, ROIC, scenario math, intelligence signals)."
+    )
 if extras.thesis_summary:
     st.info(f"**Headline thesis:** {extras.thesis_summary}")
 
