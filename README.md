@@ -40,6 +40,39 @@ Pick at run time — the system has a thin `LLMProvider` adapter so the same age
 - `gemini` (Google)
 - `mock` (deterministic fixtures, no API calls — used for tests and `make smoke`)
 
+## Hit run once, walk away — overnight runner with auto-resume
+
+For long runs that span free-tier rate limits (Gemini's 1M tokens/day,
+Groq's 500k tokens/day on Llama 3.1 8B), use the overnight runner. It
+rotates between providers when one throttles, sleeps until quotas reset,
+and resumes from where it left off if killed:
+
+```bash
+export GOOGLE_API_KEY="..."
+export GROQ_API_KEY="..."
+
+# Hit once, leave laptop on overnight, come back to a finished run
+PYTHONPATH=src python scripts/overnight_run.py
+
+# Resume an interrupted run by id
+PYTHONPATH=src python scripts/overnight_run.py --resume 20260515T040121Z-7a05eb
+```
+
+The runner:
+- **Rotates Gemini ↔ Groq** on rate-limit errors (429), parsing the API's
+  "try again in Xs" hint to know how long to wait
+- **Sleeps when both providers are throttled**, wakes up at the earliest
+  reset, and continues
+- **Persists progress continuously** to `data/runs/{run_id}.db` — kill
+  the script any time and resume with `--resume <id>`
+- Each component's status is one of `pending`, `researching`, `done`,
+  `error`, `rate_limited` — only non-`done` components are re-researched
+  on resume
+
+Same flow is wired into the Streamlit dashboard:
+- **Run** page → **Run until done** button (auto-resumes on rate limits)
+- **Resume an unfinished run** picker shows any partial / error runs
+
 ## Quickstart (local) — free LLM options
 
 The dashboard ships with two free LLM options (no credit card). Pick either or
