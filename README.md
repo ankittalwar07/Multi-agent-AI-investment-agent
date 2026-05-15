@@ -40,29 +40,37 @@ Pick at run time — the system has a thin `LLMProvider` adapter so the same age
 - `gemini` (Google)
 - `mock` (deterministic fixtures, no API calls — used for tests and `make smoke`)
 
-## Quickstart (local) — free path with Gemini
+## Quickstart (local) — free LLM options
+
+The dashboard ships with two free LLM options (no credit card). Pick either or
+both — they have independent rate limits, so when one throttles you switch:
+
+| Provider | Model | Get key | Free tier | Best for |
+|---|---|---|---|---|
+| **Gemini** | `gemini-2.0-flash` | <https://aistudio.google.com/apikey> | ~15 req/min, ~1M tokens/day | Default. Best general quality. |
+| **Groq** | `llama-3.3-70b-versatile` | <https://console.groq.com/keys> | ~30 req/min, ~14k req/day | Fastest (~200 tok/sec). Open-source Llama. Independent quota when Gemini throttles. |
 
 ```bash
 pip install -r requirements.txt
 
-# 1. Grab a FREE Gemini API key (no credit card required)
-#    https://aistudio.google.com/apikey
-export GOOGLE_API_KEY="paste-your-key-here"
+# Pick one (or both)
+export GOOGLE_API_KEY="paste-gemini-key-here"
+export GROQ_API_KEY="paste-groq-key-here"
 
-# 2. Verify it works end-to-end (one call, prints the response)
+# Verify either provider works end-to-end (one call, prints the response)
 PYTHONPATH=src python scripts/test_gemini.py
+PYTHONPATH=src python scripts/test_groq.py
 
-# 3. Generate a real run against the AI-infra stack
+# Generate a run — swap --provider gemini | groq | anthropic | openai
 PYTHONPATH=src python -m investment_agent.cli run \
-    --provider gemini --model gemini-2.0-flash --max-components 5
+    --provider groq --model llama-3.3-70b-versatile --max-components 5
 
-# 4. Launch the dashboard
+# Launch the dashboard
 streamlit run streamlit_app.py
 ```
 
-The free tier of `gemini-2.0-flash` allows ~15 requests/minute and ~1M tokens/day —
-plenty for several full runs per day. If you prefer Claude / GPT-4o, those
-providers are available in the same sidebar dropdown (paid).
+Claude / GPT-4o are also wired in (paid). All providers selectable via the
+sidebar dropdown in the dashboard.
 
 The dashboard ships with **Demo mode** on by default — it uses hand-crafted
 realistic mock data (real incumbents, plausible shares, demand signals) so you

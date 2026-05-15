@@ -32,5 +32,9 @@ def get_provider(
         from .gemini_provider import GeminiProvider
 
         return GeminiProvider(model=model, **kwargs)
+    if name == "groq":
+        from .groq_provider import GroqProvider
+
+        return GroqProvider(model=model, **kwargs)
 
     raise ValueError(f"Unknown LLM provider: {name!r}")

@@ -27,7 +27,7 @@ def _load_secrets_into_env() -> None:
     """Copy Streamlit Cloud secrets into env vars so providers can pick them up."""
     import os
     for key in (
-        "GOOGLE_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY",
+        "GOOGLE_API_KEY", "GROQ_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY",
         "BLOOMBERG_API_KEY", "PITCHBOOK_API_KEY", "CRUNCHBASE_API_KEY", "SIMILARWEB_API_KEY",
     ):
         try:
@@ -51,12 +51,20 @@ from design import apply_design  # noqa: E402
 apply_design()
 
 
-PROVIDERS = ["gemini", "anthropic", "openai", "mock"]
+PROVIDERS = ["gemini", "groq", "anthropic", "openai", "mock"]
 DEFAULT_MODELS = {
     "anthropic": "claude-sonnet-4-6",
     "openai": "gpt-4o",
     "gemini": "gemini-2.0-flash",
+    "groq": "llama-3.3-70b-versatile",
     "mock": "mock-v1",
+}
+PROVIDER_HINTS = {
+    "gemini": "Free tier — get key at aistudio.google.com/apikey",
+    "groq": "Free tier — open-source Llama 3.3 70B. Get key at console.groq.com/keys",
+    "anthropic": "Paid — claude-sonnet-4-6",
+    "openai": "Paid — gpt-4o",
+    "mock": "No API call — hand-crafted demo data",
 }
 
 
@@ -70,6 +78,7 @@ def sidebar() -> dict:
             index=PROVIDERS.index(prov_default) if prov_default in PROVIDERS else 0,
             label_visibility="collapsed",
         )
+        st.caption(PROVIDER_HINTS.get(provider, ""))
         model = st.text_input("Model", value=settings.llm_model or DEFAULT_MODELS[provider])
         mock = st.toggle(
             "Demo mode",
