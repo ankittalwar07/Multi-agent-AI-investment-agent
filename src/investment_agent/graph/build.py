@@ -149,6 +149,12 @@ class Pipeline:
             )
 
         max_workers = max(1, self.settings.max_parallel_researchers)
+        # Throttle parallelism on rate-limited free tiers so we don't burst
+        # past TPM caps (Groq free = 6k TPM on 8B, 12k on 70B).
+        if opts.provider == "groq":
+            max_workers = 1
+        elif opts.provider == "gemini" and max_workers > 2:
+            max_workers = 2
         results: list[ResearchResult] = []
         with ThreadPoolExecutor(max_workers=max_workers) as ex:
             futures = {ex.submit(_research_one, c): c for c in components}

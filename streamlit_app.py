@@ -56,12 +56,12 @@ DEFAULT_MODELS = {
     "anthropic": "claude-sonnet-4-6",
     "openai": "gpt-4o",
     "gemini": "gemini-2.0-flash",
-    "groq": "llama-3.3-70b-versatile",
+    "groq": "llama-3.1-8b-instant",
     "mock": "mock-v1",
 }
 PROVIDER_HINTS = {
     "gemini": "Free tier — get key at aistudio.google.com/apikey",
-    "groq": "Free tier — open-source Llama 3.3 70B. Get key at console.groq.com/keys",
+    "groq": "Free tier — Llama 3.1 8B Instant has 500k tokens/day (5x the 70B). Get key at console.groq.com/keys",
     "anthropic": "Paid — claude-sonnet-4-6",
     "openai": "Paid — gpt-4o",
     "mock": "No API call — hand-crafted demo data",
