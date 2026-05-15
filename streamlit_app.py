@@ -41,11 +41,14 @@ def _load_secrets_into_env() -> None:
 _load_secrets_into_env()
 
 st.set_page_config(
-    page_title="AI Infra Arbitrage",
-    page_icon=":dart:",
+    page_title="AI Infra — Investment Brief",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+from design import apply_design  # noqa: E402
+apply_design()
 
 
 PROVIDERS = ["gemini", "anthropic", "openai", "mock"]
@@ -60,27 +63,26 @@ DEFAULT_MODELS = {
 def sidebar() -> dict:
     settings = get_settings()
     with st.sidebar:
-        st.markdown("### LLM")
+        st.markdown("### Provider")
         prov_default = settings.llm_provider if settings.llm_provider in PROVIDERS else "gemini"
         provider = st.selectbox(
-            "Provider", PROVIDERS,
+            "LLM provider", PROVIDERS,
             index=PROVIDERS.index(prov_default) if prov_default in PROVIDERS else 0,
+            label_visibility="collapsed",
         )
         model = st.text_input("Model", value=settings.llm_model or DEFAULT_MODELS[provider])
         mock = st.toggle(
-            "Demo mode (no API spend)",
+            "Demo mode",
             value=(provider == "mock"),
-            help="Uses hand-crafted realistic data so you can explore the dashboard without API keys.",
+            help="Hand-crafted illustrative data — no API spend.",
         )
 
-        st.markdown("---")
-        st.markdown("### Run picker")
+        st.markdown("### Run")
         runs = list_run_ids(settings.run_output_dir)
-        chosen_run = st.selectbox("Existing runs", runs) if runs else None
+        chosen_run = st.selectbox("Existing runs", runs, label_visibility="collapsed") if runs else None
         if not runs:
             st.caption("No runs yet.")
 
-        st.markdown("---")
         with st.expander("Advanced"):
             max_cost = st.slider("Max cost (USD)", 0.5, 50.0, float(settings.max_cost_usd), 0.5)
             max_components = st.number_input("Limit components (0=all)", 0, 40, 0, 1)
@@ -99,9 +101,10 @@ st.session_state["cfg"] = cfg
 
 st.markdown(
     "<h1 style='margin-bottom:0;'>AI Infrastructure — Investment Brief</h1>"
-    "<p style='color:#94a3b8;margin-top:4px;'>"
-    "Bottom-up coverage of the AI value chain. Sole-source moats, capacity-constrained "
-    "incumbents, and mispriced positions across raw materials &rarr; silicon &rarr; cloud &rarr; models."
+    "<p style='color:#94a3b8;margin-top:6px;font-size:15px;line-height:1.5;max-width:780px;'>"
+    "Bottom-up coverage of the AI value chain — sole-source moats, "
+    "capacity-constrained incumbents, and mispriced positions across the stack "
+    "from raw materials to foundation models."
     "</p>",
     unsafe_allow_html=True,
 )
@@ -109,8 +112,8 @@ st.markdown(
 
 if not cfg["chosen_run"]:
     st.info(
-        "**First time here?** Generate a demo run — the dashboard ships with realistic "
-        "hand-crafted data so you can evaluate it without configuring any API keys."
+        "First time here? Generate a demo run — the dashboard ships with hand-crafted "
+        "illustrative data so you can evaluate the framework without API keys."
     )
     if st.button("Generate demo run", type="primary"):
         from investment_agent.config import Settings as _Settings
@@ -212,8 +215,8 @@ st.markdown("---")
 
 
 # ---------------- TOP 5 PICKS ----------------
-st.markdown("## :fire: Top high-conviction picks")
-st.caption("Filtered to STRONG BUY / BUY with HIGH conviction. Click any name to drill into the full thesis.")
+st.markdown("## Top high-conviction picks")
+st.caption("Filtered to STRONG BUY / BUY with high conviction. Drill into any name on the Investment Thesis page.")
 
 # Re-rank to give a boost to council-backed names
 df_sorted = df.copy()
@@ -225,22 +228,35 @@ for _, row in top5.iterrows():
     with st.container(border=True):
         c1, c2, c3, c4 = st.columns([4, 2, 2, 3])
         with c1:
+            ticker_html = (
+                f"<span style='color:#64748b;font-size:14px;font-weight:500;"
+                f"letter-spacing:0.04em;'>{row['ticker']}</span>"
+                if row['ticker'] else ""
+            )
             st.markdown(
-                f"### {row['name']} "
-                + (f"<span style='color:#94a3b8;font-size:18px;'>· {row['ticker']}</span>" if row['ticker'] else "")
-                + f"<br/>{rec_badge(rec)} &nbsp; {consensus_badge(row.get('council_consensus'))}",
+                f"<div style='font-size:18px;font-weight:600;color:#f1f5f9;"
+                f"margin-bottom:4px;letter-spacing:-0.01em;'>"
+                f"{row['name']} &nbsp; {ticker_html}</div>"
+                f"<div style='margin-bottom:8px;'>{rec_badge(rec)} &nbsp; "
+                f"{consensus_badge(row.get('council_consensus'))}</div>"
+                f"<div style='color:#94a3b8;font-size:12px;'>"
+                f"{row['component']} &nbsp;·&nbsp; {row['conviction'] or '—'} conviction</div>",
                 unsafe_allow_html=True,
             )
-            st.caption(f"_{row['component']}_  &middot;  {row['conviction'] or '—'} conviction")
         with c2:
             st.metric("Price", fmt_price(row["stock_price"]))
             st.caption(f"Mkt cap {fmt_money(row['market_cap_usd'])}")
         with c3:
             st.metric("12m expected", f"+{exp_ret_pct:.0f}%")
-            st.caption(f"Council {int(row.get('council_buy_count') or 0)}/6 BUY")
+            cb = int(row.get('council_buy_count') or 0)
+            st.caption(f"Council {cb}/9 BUY")
         with c4:
             if row.get("thesis_summary"):
-                st.write(row["thesis_summary"])
+                st.markdown(
+                    f"<div style='color:#cbd5e1;font-size:13px;line-height:1.5;'>"
+                    f"{row['thesis_summary']}</div>",
+                    unsafe_allow_html=True,
+                )
 
 st.markdown("---")
 
@@ -269,11 +285,10 @@ st.markdown("---")
 
 
 # ---------------- HYPERSCALER CAPEX SENSITIVITY ----------------
-st.markdown("## :electric_plug: Hyperscaler capex exposure map")
+st.markdown("## Hyperscaler capex exposure")
 st.caption(
-    "Revenue beta to combined Microsoft + Google + Amazon + Meta capex. The "
-    "vertical line at 1.0x is parity — anything above is real leverage to the "
-    "AI capex cycle. The portfolio's macro picture in one chart."
+    "Revenue beta to combined Microsoft + Google + Amazon + Meta capex. "
+    "Vertical dashed line at 1.0x is parity — anything above is real leverage to the AI capex cycle."
 )
 st.plotly_chart(chart_hyperscaler_capex_sensitivity(df, top_n=18), use_container_width=True)
 
@@ -284,11 +299,12 @@ st.markdown("---")
 st.markdown(
     """
 ### Explore the brief
-- **:world_map: Market Map** — value-chain visualization with structure badges and demand/supply call-outs per layer
-- **:package: Components** — drill into any layer (e.g. _Copper_, _HBM_, _Foundation Models_) with share splits, top picks, risks
-- **:office: Companies** — sortable / filterable table with full financials and analyst consensus
-- **:bar_chart: Investment Thesis** — full per-company write-up: price card, P/E ratios, bull/base/bear price targets, thesis bullets, risks, catalysts
-- **:bookmark_tabs: Portfolio** — weighted aggregation of all BUY-rated names with expected portfolio return
+- **Datacenter Anatomy** — visual walk through the stack from raw materials to applications
+- **Market Map** — value-chain visualization with structure badges and demand/supply call-outs per layer
+- **Components** — drill into any layer (Copper, HBM, Foundation Models, etc.)
+- **Investment Thesis** — per-company write-up with earnings power, risk & sentiment, intelligence signals, scenario math, and the 9-investor council
+- **Investor Council** — cross-portfolio voting matrix
+- **Portfolio** — conviction-weighted basket with expected portfolio return
 """
 )
 

@@ -22,6 +22,9 @@ if str(SRC) not in sys.path:
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from design import apply_design  # noqa: E402
+apply_design()
+
 from dashboard_utils import (  # noqa: E402
     chart_analyst_consensus, chart_price_targets,
     chart_scenario_waterfall, chart_sensitivity_table,
@@ -87,7 +90,7 @@ if extras.thesis_summary:
 st.markdown("---")
 
 # ---------------- PRICE / VALUATION ROW ----------------
-st.markdown("### :moneybag: Stock & valuation")
+st.markdown("### Stock & valuation")
 
 if extras.stock_price:
     p1, p2, p3, p4, p5 = st.columns(5)
@@ -123,7 +126,7 @@ q5.metric("Composite moat", f"{co_obj.score.composite:.0f}/100" if co_obj.score 
 st.markdown("---")
 
 # ---------------- EARNINGS POWER & BALANCE SHEET (Pass 1) ----------------
-st.markdown("### :anatomical_heart: Earnings power & balance sheet")
+st.markdown("### Earnings power & balance sheet")
 st.caption(
     "The economic engine — what every Buffett/Munger underwriting actually anchors on. "
     "ROIC vs WACC is the real moat in basis points; the rest tells you whether "
@@ -142,7 +145,7 @@ else:
     ep1.metric("ROIC", "—")
 ep2.metric("ROIC 5y avg", fmt_pct(extras.roic_5y_avg))
 trend = extras.roic_trend
-trend_icon = ":arrow_up_small:" if trend == "improving" else (":arrow_down_small:" if trend == "declining" else ":left_right_arrow:")
+trend_icon = ":arrow_up_small:" if trend == "improving" else (":arrow_down_small:" if trend == "declining" else "")
 ep3.metric("ROIC trend", (trend.title() if trend else "—"), help="Direction of ROIC over the last 5 years")
 ep4.metric("WACC", fmt_pct(extras.wacc))
 shy = extras.total_shareholder_yield
@@ -189,10 +192,10 @@ if roic is not None and wacc is not None:
 if nd is not None and nd < -5_000_000_000:
     flags.append((":green_circle:", "**Net cash position** — fortress balance sheet, optionality on downturns."))
 elif extras.debt_to_ebitda is not None and extras.debt_to_ebitda > 3.5:
-    flags.append((":warning:", f"**Leverage elevated** ({extras.debt_to_ebitda:.1f}x EBITDA) — refinancing / cycle risk."))
+    flags.append(("", f"**Leverage elevated** ({extras.debt_to_ebitda:.1f}x EBITDA) — refinancing / cycle risk."))
 
 if extras.capex_to_sales is not None and extras.capex_to_sales > 0.30:
-    flags.append((":warning:", f"**Capex-heavy** ({extras.capex_to_sales*100:.0f}% of sales) — incremental ROIC matters more than headline FCF."))
+    flags.append(("", f"**Capex-heavy** ({extras.capex_to_sales*100:.0f}% of sales) — incremental ROIC matters more than headline FCF."))
 
 if extras.fcf_margin_after_capex is not None and extras.fcf_margin_after_capex < 0:
     flags.append((":red_circle:", f"**Negative FCF after capex** ({extras.fcf_margin_after_capex*100:.0f}%) — funded by debt or equity, not internal cash."))
@@ -200,7 +203,7 @@ elif extras.fcf_margin_after_capex is not None and extras.fcf_margin_after_capex
     flags.append((":green_circle:", f"**Strong FCF after capex** ({extras.fcf_margin_after_capex*100:.0f}%) — real cash generation, not accounting earnings."))
 
 if extras.rd_to_sales is not None and extras.rd_to_sales >= 0.15:
-    flags.append((":bulb:", f"**Heavy R&D ({extras.rd_to_sales*100:.0f}% of sales)** — moat-building investment."))
+    flags.append(("", f"**Heavy R&D ({extras.rd_to_sales*100:.0f}% of sales)** — moat-building investment."))
 
 if flags:
     for icon, msg in flags:
@@ -210,7 +213,7 @@ st.markdown("---")
 
 
 # ---------------- RISK & SENTIMENT (Pass 2) ----------------
-st.markdown("### :rotating_light: Risk & sentiment")
+st.markdown("### Risk & sentiment")
 st.caption(
     "Concentration, capex sensitivity, and positioning signals. Where the dollars "
     "come from, who's betting on it, and whether the consensus has already played out."
@@ -249,7 +252,7 @@ if insider is not None:
         insider_str = f"${insider/1e6:+.0f}M"
     else:
         insider_str = f"${insider:+,.0f}"
-    insider_label = ":green_heart: Buying" if insider > 1_000_000 else (":red_circle: Selling" if insider < -1_000_000 else ":left_right_arrow: Flat")
+    insider_label = "Buying" if insider > 1_000_000 else (":red_circle: Selling" if insider < -1_000_000 else "Flat")
 else:
     insider_str = "—"
     insider_label = None
@@ -275,17 +278,17 @@ flags2 = []
 if top1 is not None and top1 >= 0.40:
     flags2.append((":red_circle:", f"**Top-customer risk** — single customer is {top1*100:.0f}% of revenue. One contract loss = thesis break."))
 elif top1 is not None and top1 >= 0.25:
-    flags2.append((":warning:", f"**Concentrated customer base** — top customer is {top1*100:.0f}% of revenue."))
+    flags2.append(("", f"**Concentrated customer base** — top customer is {top1*100:.0f}% of revenue."))
 
 if china is not None and china >= 0.25:
     flags2.append((":red_circle:", f"**Heavy China exposure ({china*100:.0f}%)** — export-control / tariff tail risk is material."))
 elif china is not None and china >= 0.15:
-    flags2.append((":warning:", f"**Meaningful China exposure ({china*100:.0f}%)** — monitor policy."))
+    flags2.append(("", f"**Meaningful China exposure ({china*100:.0f}%)** — monitor policy."))
 
 if hs_beta is not None and hs_beta >= 1.5:
     flags2.append((":green_circle:", f"**High hyperscaler leverage ({hs_beta:.1f}x beta)** — direct play on AI capex cycle. Loves it on the way up; gets hit hardest on digestion."))
 elif hs_beta is not None and hs_beta < 0.3:
-    flags2.append((":warning:", f"**Limited AI leverage ({hs_beta:.1f}x beta)** — narrative may overstate this name's AI exposure."))
+    flags2.append(("", f"**Limited AI leverage ({hs_beta:.1f}x beta)** — narrative may overstate this name's AI exposure."))
 
 if insider is not None and insider > 5_000_000:
     flags2.append((":green_circle:", f"**Insiders net-buying ({fmt_money(insider)})** — they're putting their own money behind the thesis."))
@@ -293,9 +296,9 @@ elif insider is not None and insider < -50_000_000:
     flags2.append((":red_circle:", f"**Heavy insider selling ({fmt_money(-insider)} in 6m)** — they may be trimming at the top."))
 
 if short is not None and short >= 0.10:
-    flags2.append((":warning:", f"**High short interest ({short*100:.0f}%)** — controversy. Could be a squeeze setup OR a structural short thesis."))
+    flags2.append(("", f"**High short interest ({short*100:.0f}%)** — controversy. Could be a squeeze setup OR a structural short thesis."))
 elif short is not None and short <= 0.012:
-    flags2.append((":warning:", f"**Almost no shorts ({short*100:.1f}%)** — no marginal skeptics left; positioning is one-sided."))
+    flags2.append(("", f"**Almost no shorts ({short*100:.1f}%)** — no marginal skeptics left; positioning is one-sided."))
 
 if eps_rev is not None and eps_rev >= 0.10:
     flags2.append((":green_circle:", f"**EPS revisions {eps_rev*100:+.0f}%** in 90 days — street is raising estimates; momentum signal."))
@@ -314,7 +317,7 @@ intel_summary = extras.intelligence_summary or {}
 intel_signals = extras.intelligence_signals or []
 
 if intel_summary.get("total_signals", 0) > 0 or intel_signals:
-    st.markdown("### :detective: Intelligence signals")
+    st.markdown("### Intelligence signals")
     st.caption(
         "Non-financial signals that the market often misprices — US government "
         "investments, federal contracts, congressional STOCK Act disclosures, "
@@ -347,32 +350,32 @@ if intel_summary.get("total_signals", 0) > 0 or intel_signals:
     # Highlight policy tailwinds and headwinds
     if intel_summary.get("policy_tailwinds"):
         st.success(
-            ":white_check_mark: **Policy tailwinds:** " +
+            "**Policy tailwinds:** " +
             " · ".join(intel_summary["policy_tailwinds"][:3])
         )
     if intel_summary.get("policy_headwinds"):
         st.error(
-            ":warning: **Policy headwinds:** " +
+            "**Policy headwinds:** " +
             " · ".join(intel_summary["policy_headwinds"][:3])
         )
     if intel_summary.get("notable_politicians"):
         st.info(
-            ":bust_in_silhouette: **Notable congressional activity:** " +
+            "**Notable congressional activity:** " +
             ", ".join(intel_summary["notable_politicians"][:4])
         )
 
-    with st.expander(f":mag: Full intelligence signal list ({len(intel_signals)} records)"):
+    with st.expander(f"Full intelligence signal list ({len(intel_signals)} records)"):
         if not intel_signals:
             st.caption("No raw signals persisted.")
         for sig in intel_signals:
             cat = sig.get("category", "")
             cat_emoji = {
-                "us_gov_investment": ":flag-us:",
-                "federal_contract": ":scroll:",
-                "congressional_trade": ":bust_in_silhouette:",
-                "foreign_gov_activity": ":globe_with_meridians:",
-                "policy_headwind": ":warning:",
-                "form4_insider": ":busts_in_silhouette:",
+                "us_gov_investment": "",
+                "federal_contract": "",
+                "congressional_trade": "",
+                "foreign_gov_activity": "",
+                "policy_headwind": "",
+                "form4_insider": "",
             }.get(cat, ":pushpin:")
             direction_color = {"bullish": "#16a34a", "bearish": "#dc2626", "neutral": "#64748b"}.get(
                 sig.get("direction", "neutral"), "#64748b",
@@ -405,7 +408,7 @@ if intel_summary.get("total_signals", 0) > 0 or intel_signals:
 
 
 # ---------------- SCENARIO & VALUATION (Pass 3) ----------------
-st.markdown("### :bar_chart: Scenario math & valuation")
+st.markdown("### Scenario math & valuation")
 st.caption(
     "The headline '12-month expected return' is just one number. This section "
     "decomposes it into probability-weighted scenarios and lets you stress-test "
@@ -467,13 +470,13 @@ if extras.stock_price and extras.bull_target and extras.base_target and extras.b
     if extras.expected_return_12m is not None and abs(pw_ret - extras.expected_return_12m) > 0.03:
         if pw_ret < extras.expected_return_12m:
             st.warning(
-                f":warning: **Probability-weighted return ({pw_ret*100:+.0f}%) is meaningfully "
+                f"**Probability-weighted return ({pw_ret*100:+.0f}%) is meaningfully "
                 f"below the headline expected return ({extras.expected_return_12m*100:+.0f}%)** — "
                 "the tail risks are mathematically reducing the case. Consider sizing down."
             )
         else:
             st.success(
-                f":sparkles: **Probability-weighted return ({pw_ret*100:+.0f}%) exceeds the "
+                f"**Probability-weighted return ({pw_ret*100:+.0f}%) exceeds the "
                 f"headline ({extras.expected_return_12m*100:+.0f}%)** — bull case is asymmetric."
             )
 
@@ -570,28 +573,28 @@ if any([short_term, medium_term, long_term, exit_triggers]):
     )
     h_cols = st.columns(4)
     with h_cols[0]:
-        st.markdown(":hourglass: **Short-term catalysts** (1-2 quarters)")
+        st.markdown("**Short-term catalysts** (1-2 quarters)")
         if short_term:
             for s in short_term:
                 st.markdown(f"- {s}")
         else:
             st.caption("_n/a_")
     with h_cols[1]:
-        st.markdown(":chart_with_upwards_trend: **Base case** (12-24 months)")
+        st.markdown("**Base case** (12-24 months)")
         if medium_term:
             for s in medium_term:
                 st.markdown(f"- {s}")
         else:
             st.caption("_n/a_")
     with h_cols[2]:
-        st.markdown(":mountain: **Long-term moat** (3-5 years)")
+        st.markdown("**Long-term moat** (3-5 years)")
         if long_term:
             for s in long_term:
                 st.markdown(f"- {s}")
         else:
             st.caption("_n/a_")
     with h_cols[3]:
-        st.markdown(":octagonal_sign: **Exit triggers**")
+        st.markdown("**Exit triggers**")
         if exit_triggers:
             for s in exit_triggers:
                 st.markdown(f"- {s}")
@@ -603,7 +606,7 @@ if any([short_term, medium_term, long_term, exit_triggers]):
 # ---------------- ANALYST CONSENSUS + PRICE TARGETS ----------------
 left, right = st.columns([1, 2])
 with left:
-    st.markdown("### :pencil: Street consensus")
+    st.markdown("### Street consensus")
     if extras.analyst_buy or extras.analyst_hold or extras.analyst_sell:
         st.plotly_chart(
             chart_analyst_consensus(extras.analyst_buy, extras.analyst_hold, extras.analyst_sell),
@@ -623,7 +626,7 @@ with left:
         st.caption("No analyst data available.")
 
 with right:
-    st.markdown("### :dart: Our price-target range (12m)")
+    st.markdown("### Our price-target range (12m)")
     if extras.stock_price and extras.bull_target and extras.base_target and extras.bear_target:
         st.plotly_chart(
             chart_price_targets(extras.stock_price, extras.bear_target, extras.base_target, extras.bull_target),
@@ -650,7 +653,7 @@ st.markdown("---")
 verdicts = extras.council_verdicts or []
 summary = extras.council_summary or {}
 
-st.markdown("### :classical_building: Council of Legendary Investors")
+st.markdown("### Council of Legendary Investors")
 st.caption(
     "Each council member applies their distinct philosophy to this name. Use the spread "
     "to gauge conviction: a unanimous BUY is high-confidence; a divided council often "
@@ -668,16 +671,37 @@ if verdicts:
     cc4.metric("HIGH-conv BUYs", summary.get("high_conviction_buy_count", 0))
 
     st.write("")
-    # Render each investor's verdict as a card row
+    # Per-persona accent and initials for the avatar circle
+    PERSONA_ACCENT = {
+        "buffett": "#22d3ee", "munger": "#a3e635", "lynch": "#fbbf24",
+        "graham": "#94a3b8", "druck": "#10b981", "wood": "#f472b6",
+        "marks": "#fb923c", "burry": "#f43f5e", "dalio": "#60a5fa",
+    }
+
+    def _initials(name: str) -> str:
+        parts = [w for w in name.split() if w and w[0].isalpha()]
+        if not parts: return "?"
+        if len(parts) == 1: return parts[0][:2].upper()
+        return (parts[0][0] + parts[-1][0]).upper()
+
     for vd in verdicts:
         persona = INVESTOR_BY_KEY.get(vd["investor_key"])
+        accent = PERSONA_ACCENT.get(vd["investor_key"], "#22d3ee")
         with st.container(border=True):
             col_a, col_b, col_c = st.columns([3, 1, 6])
             with col_a:
-                avatar = persona.avatar if persona else ":bust_in_silhouette:"
-                style_str = f" · _{persona.style}_" if persona else ""
+                style_str = persona.style if persona else ""
                 st.markdown(
-                    f"{avatar} **{vd['investor_name']}**{style_str}",
+                    f"<div style='display:flex;align-items:center;gap:10px;'>"
+                    f"<div style='width:30px;height:30px;border-radius:50%;"
+                    f"background:{accent}15;border:1px solid {accent};"
+                    f"display:flex;align-items:center;justify-content:center;"
+                    f"color:{accent};font-weight:600;font-size:11px;flex-shrink:0;'>"
+                    f"{_initials(vd['investor_name'])}</div>"
+                    f"<div><div style='font-weight:600;color:#f1f5f9;font-size:14px;'>"
+                    f"{vd['investor_name']}</div>"
+                    f"<div style='color:#64748b;font-size:10px;letter-spacing:0.06em;"
+                    f"text-transform:uppercase;margin-top:1px;'>{style_str}</div></div></div>",
                     unsafe_allow_html=True,
                 )
                 if persona:
@@ -694,8 +718,8 @@ if verdicts:
                     pos = vd.get("top_positive") or ""
                     concern = vd.get("top_concern") or ""
                     st.caption(
-                        f"&nbsp;&nbsp;:white_check_mark: {pos}"
-                        + (f" &nbsp;|&nbsp; :warning: {concern}" if concern else "")
+                        f"&nbsp;&nbsp;{pos}"
+                        + (f" &nbsp;|&nbsp; {concern}" if concern else "")
                     )
 else:
     st.caption("Council has not reviewed this run.")
@@ -705,21 +729,21 @@ st.markdown("---")
 # ---------------- THESIS / RISKS / CATALYSTS ----------------
 t1, t2, t3 = st.columns(3)
 with t1:
-    st.markdown("### :white_check_mark: Why we like it")
+    st.markdown("### Why we like it")
     if extras.thesis_points:
         for p in extras.thesis_points:
             st.markdown(f"- {p}")
     else:
         st.caption("No thesis bullets available.")
 with t2:
-    st.markdown("### :warning: Key risks")
+    st.markdown("### Key risks")
     if extras.risks:
         for r in extras.risks:
             st.markdown(f"- {r}")
     else:
         st.caption("No risk bullets available.")
 with t3:
-    st.markdown("### :rocket: Catalysts")
+    st.markdown("### Catalysts")
     if extras.catalysts:
         for c in extras.catalysts:
             st.markdown(f"- {c}")

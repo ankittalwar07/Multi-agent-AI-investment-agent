@@ -14,6 +14,9 @@ if str(SRC) not in sys.path:
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from design import apply_design  # noqa: E402
+apply_design()
+
 from dashboard_utils import (  # noqa: E402
     fmt_pct, rec_badge, structure_badge, view_to_dataframe,
 )

@@ -10,6 +10,11 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from design import apply_design  # noqa: E402
+apply_design()
 
 from investment_agent.config import get_settings  # noqa: E402
 from investment_agent.graph.build import Pipeline, RunOptions  # noqa: E402

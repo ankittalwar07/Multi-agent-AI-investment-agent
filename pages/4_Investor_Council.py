@@ -22,6 +22,9 @@ if str(SRC) not in sys.path:
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from design import apply_design  # noqa: E402
+apply_design()
+
 from dashboard_utils import (  # noqa: E402
     CONSENSUS_COLORS, CONSENSUS_LABELS,
     chart_council_score_distribution, chart_council_voting_matrix,
@@ -30,7 +33,7 @@ from dashboard_utils import (  # noqa: E402
 from investment_agent.council.personas import COUNCIL  # noqa: E402
 from investment_agent.storage.repository import RunRepository  # noqa: E402
 
-st.title(":classical_building: Investor Council")
+st.title("Investor Council")
 st.caption(
     "Six legendary investors review every name in the universe through their lens. "
     "Names with unanimous BUY are the highest-confidence ideas; divided council = "
@@ -52,20 +55,55 @@ if df.empty or df["council_consensus"].isna().all():
 
 # ============== Council bios ==============
 st.markdown("### The council")
+
+
+def _initials(name: str) -> str:
+    parts = [w for w in name.split() if w and w[0].isalpha()]
+    if not parts:
+        return "?"
+    if len(parts) == 1:
+        return parts[0][:2].upper()
+    return (parts[0][0] + parts[-1][0]).upper()
+
+
+PERSONA_ACCENT = {
+    "buffett": "#22d3ee", "munger": "#a3e635", "lynch": "#fbbf24",
+    "graham": "#94a3b8", "druck": "#10b981", "wood": "#f472b6",
+    "marks": "#fb923c", "burry": "#f43f5e", "dalio": "#60a5fa",
+}
+
 cols = st.columns(min(len(COUNCIL), 3))
 for i, p in enumerate(COUNCIL):
     with cols[i % len(cols)]:
-        # Count BUYs this investor gave in this run
         buy_count = 0
         for c in view.companies:
             for vd in c.extras.council_verdicts:
                 if vd.get("investor_key") == p.key and vd.get("verdict") in ("STRONG_BUY", "BUY"):
                     buy_count += 1
                     break
+        accent = PERSONA_ACCENT.get(p.key, "#22d3ee")
         with st.container(border=True):
-            st.markdown(f"{p.avatar} **{p.name}**")
-            st.caption(f"_{p.firm}_ &middot; {p.style} &middot; **{buy_count} BUYs**")
-            st.markdown(f"<em>\"{p.famous_quote}\"</em>", unsafe_allow_html=True)
+            st.markdown(
+                f"<div style='display:flex;align-items:center;gap:12px;margin-bottom:10px;'>"
+                f"<div style='width:38px;height:38px;border-radius:50%;"
+                f"background:{accent}15;border:1px solid {accent};"
+                f"display:flex;align-items:center;justify-content:center;"
+                f"color:{accent};font-weight:600;font-size:13px;flex-shrink:0;'>"
+                f"{_initials(p.name)}</div>"
+                f"<div>"
+                f"<div style='font-weight:600;color:#f1f5f9;font-size:15px;'>{p.name}</div>"
+                f"<div style='color:#64748b;font-size:11px;letter-spacing:0.04em;"
+                f"text-transform:uppercase;margin-top:1px;'>"
+                f"{p.firm} &nbsp;·&nbsp; {p.style}</div></div></div>"
+                f"<div style='color:#cbd5e1;font-size:12px;line-height:1.55;"
+                f"font-style:italic;border-left:2px solid {accent}40;padding-left:10px;"
+                f"margin-bottom:10px;'>"
+                f"\"{p.famous_quote}\"</div>"
+                f"<div style='color:#94a3b8;font-size:12px;'>"
+                f"<span style='color:{accent};font-weight:600;font-size:14px;'>{buy_count}</span>"
+                f" &nbsp;BUY{'s' if buy_count != 1 else ''} in this run</div>",
+                unsafe_allow_html=True,
+            )
 
 st.markdown("---")
 
@@ -160,7 +198,7 @@ for tab, persona in zip(investor_tabs, COUNCIL):
 st.markdown("---")
 
 # ============== Divergence — alpha-rich picks ==============
-st.markdown("### :twisted_rightwards_arrows: Divergent picks (alpha-rich, controversial)")
+st.markdown("### Divergent picks (alpha-rich, controversial)")
 st.caption(
     "Names where the council is split — usually the most interesting setups. "
     "If you can resolve the disagreement, that's where the edge is."

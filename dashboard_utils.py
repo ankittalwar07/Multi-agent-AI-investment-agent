@@ -7,22 +7,31 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
+from design import plotly_layout_dark
 from investment_agent.storage.models import CompanyRow, RunView
+
+
+def _polish(fig: go.Figure, **overrides) -> go.Figure:
+    """Apply the shared dark layout to any plotly figure for consistency."""
+    layout = plotly_layout_dark()
+    layout.update(overrides)
+    fig.update_layout(**layout)
+    return fig
 
 
 # ---------------------- recommendation logic ----------------------
 
 REC_ORDER = ["STRONG_BUY", "BUY", "HOLD", "SELL", "STRONG_SELL", "PASS", "AVOID", "N/A", "SEE_TSM"]
 REC_COLORS = {
-    "STRONG_BUY": "#16a34a",
-    "BUY": "#22c55e",
-    "HOLD": "#eab308",
-    "SELL": "#f97316",
-    "STRONG_SELL": "#dc2626",
-    "PASS": "#94a3b8",
-    "AVOID": "#dc2626",
-    "N/A": "#64748b",
-    "SEE_TSM": "#64748b",
+    "STRONG_BUY": "#059669",   # emerald-600
+    "BUY": "#10b981",          # emerald-500
+    "HOLD": "#a16207",         # amber-700
+    "SELL": "#c2410c",         # orange-700
+    "STRONG_SELL": "#be123c",  # rose-800
+    "PASS": "#475569",         # slate-600
+    "AVOID": "#9f1239",        # rose-900
+    "N/A": "#475569",
+    "SEE_TSM": "#475569",
 }
 REC_LABELS = {
     "STRONG_BUY": "STRONG BUY",
@@ -37,11 +46,11 @@ REC_LABELS = {
 }
 
 CONSENSUS_COLORS = {
-    "UNANIMOUS_STRONG_BUY": "#16a34a",
-    "UNANIMOUS_BUY": "#22c55e",
+    "UNANIMOUS_STRONG_BUY": "#059669",
+    "UNANIMOUS_BUY": "#10b981",
     "MAJORITY_BUY": "#84cc16",
-    "DIVIDED": "#64748b",
-    "MAJORITY_AVOID": "#dc2626",
+    "DIVIDED": "#94a3b8",
+    "MAJORITY_AVOID": "#f43f5e",
 }
 CONSENSUS_LABELS = {
     "UNANIMOUS_STRONG_BUY": "Unanimous STRONG BUY",
@@ -52,36 +61,50 @@ CONSENSUS_LABELS = {
 }
 
 STRUCTURE_COLORS = {
-    "monopoly": "#dc2626",
-    "duopoly": "#ea580c",
-    "oligopoly": "#eab308",
-    "fragmented": "#0ea5e9",
+    "monopoly": "#f43f5e",
+    "duopoly": "#fb923c",
+    "oligopoly": "#fbbf24",
+    "fragmented": "#38bdf8",
 }
 
 
 def rec_badge(rec: str | None) -> str:
-    """Markdown-safe colored pill for a recommendation."""
+    """Refined recommendation pill — squared, uppercase, dense typography."""
     if not rec:
-        return "—"
-    color = REC_COLORS.get(rec, "#64748b")
+        return '<span style="color:#64748b;">—</span>'
+    color = REC_COLORS.get(rec, "#475569")
     label = REC_LABELS.get(rec, rec)
-    return f'<span style="background:{color};color:white;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;">{label}</span>'
+    return (
+        f'<span style="display:inline-block;background:{color};color:#f8fafc;'
+        f'padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;'
+        f'letter-spacing:0.06em;text-transform:uppercase;">{label}</span>'
+    )
 
 
 def consensus_badge(label: str | None) -> str:
-    """Colored pill for a council consensus label."""
+    """Refined consensus pill — squared, uppercase."""
     if not label:
-        return "—"
+        return '<span style="color:#64748b;">—</span>'
     color = CONSENSUS_COLORS.get(label, "#475569")
     text = CONSENSUS_LABELS.get(label, label)
-    return f'<span style="background:{color};color:white;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;">{text}</span>'
+    return (
+        f'<span style="display:inline-block;background:rgba(255,255,255,0.02);'
+        f'border:1px solid {color};color:{color};padding:3px 10px;border-radius:4px;'
+        f'font-size:11px;font-weight:600;letter-spacing:0.06em;'
+        f'text-transform:uppercase;">{text}</span>'
+    )
 
 
 def structure_badge(s: str | None) -> str:
     if not s:
-        return "—"
+        return '<span style="color:#64748b;">—</span>'
     color = STRUCTURE_COLORS.get(s.lower(), "#475569")
-    return f'<span style="background:{color};color:white;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;text-transform:uppercase;">{s}</span>'
+    return (
+        f'<span style="display:inline-block;background:rgba(255,255,255,0.02);'
+        f'border:1px solid {color};color:{color};padding:2px 8px;border-radius:3px;'
+        f'font-size:10px;font-weight:600;letter-spacing:0.08em;'
+        f'text-transform:uppercase;">{s}</span>'
+    )
 
 
 def fmt_pct(v) -> str:
@@ -276,7 +299,7 @@ def _empty_fig(msg: str = "No data") -> go.Figure:
         margin=dict(l=0, r=0, t=10, b=0), height=240,
         xaxis=dict(visible=False), yaxis=dict(visible=False),
     )
-    return fig
+    return _polish(fig)
 
 
 def chart_recommendation_distribution(df: pd.DataFrame) -> go.Figure:
@@ -300,7 +323,7 @@ def chart_recommendation_distribution(df: pd.DataFrame) -> go.Figure:
         yaxis_title="# companies",
         showlegend=False,
     )
-    return fig
+    return _polish(fig)
 
 
 def chart_analyst_consensus(buy: int | None, hold: int | None, sell: int | None) -> go.Figure:
@@ -323,7 +346,7 @@ def chart_analyst_consensus(buy: int | None, hold: int | None, sell: int | None)
         yaxis_title="# analysts",
         showlegend=False,
     )
-    return fig
+    return _polish(fig)
 
 
 def chart_price_targets(price: float | None, bear: float | None, base: float | None, bull: float | None) -> go.Figure:
@@ -362,7 +385,7 @@ def chart_price_targets(price: float | None, bear: float | None, base: float | N
         yaxis=dict(visible=False),
         showlegend=False,
     )
-    return fig
+    return _polish(fig)
 
 
 def chart_market_structure(df: pd.DataFrame) -> go.Figure:
@@ -387,7 +410,7 @@ def chart_market_structure(df: pd.DataFrame) -> go.Figure:
         height=320,
         showlegend=False,
     )
-    return fig
+    return _polish(fig)
 
 
 def chart_top_picks_bar(df: pd.DataFrame, n: int = 10) -> go.Figure:
@@ -416,7 +439,7 @@ def chart_top_picks_bar(df: pd.DataFrame, n: int = 10) -> go.Figure:
         xaxis_title="12-month expected return (%)",
         yaxis_title="",
     )
-    return fig
+    return _polish(fig)
 
 
 def chart_share_pie(df_component: pd.DataFrame, component_name: str) -> go.Figure:
@@ -439,7 +462,7 @@ def chart_share_pie(df_component: pd.DataFrame, component_name: str) -> go.Figur
         title=f"Share — {component_name}",
         showlegend=False,
     )
-    return fig
+    return _polish(fig)
 
 
 def chart_demand_supply(df_component: pd.DataFrame, component_name: str) -> go.Figure:
@@ -477,7 +500,7 @@ def chart_demand_supply(df_component: pd.DataFrame, component_name: str) -> go.F
         yaxis_title="Index (2024 = 100)",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
-    return fig
+    return _polish(fig)
 
 
 def chart_council_voting_matrix(df: pd.DataFrame, view, top_n: int = 25) -> go.Figure:
@@ -540,7 +563,7 @@ def chart_council_voting_matrix(df: pd.DataFrame, view, top_n: int = 25) -> go.F
         xaxis_title="", yaxis_title="",
         xaxis=dict(side="top"),
     )
-    return fig
+    return _polish(fig)
 
 
 def chart_council_score_distribution(df: pd.DataFrame) -> go.Figure:
@@ -555,7 +578,7 @@ def chart_council_score_distribution(df: pd.DataFrame) -> go.Figure:
         margin=dict(l=0, r=0, t=10, b=0), height=240,
         xaxis_title="Council score (%)", yaxis_title="# companies",
     )
-    return fig
+    return _polish(fig)
 
 
 # ---------------------- Scenario math (Pass 3) ----------------------
@@ -653,7 +676,7 @@ def chart_sensitivity_table(
         yaxis_title="5y revenue CAGR",
         xaxis=dict(side="top"),
     )
-    return fig
+    return _polish(fig)
 
 
 def chart_scenario_waterfall(
@@ -678,7 +701,7 @@ def chart_scenario_waterfall(
         yaxis_title="Contribution to expected return (%)",
         showlegend=False,
     )
-    return fig
+    return _polish(fig)
 
 
 def chart_hyperscaler_capex_sensitivity(df: pd.DataFrame, top_n: int = 18) -> go.Figure:
@@ -712,7 +735,7 @@ def chart_hyperscaler_capex_sensitivity(df: pd.DataFrame, top_n: int = 18) -> go
     )
     fig.add_vline(x=1.0, line=dict(color="#94a3b8", dash="dash"),
                    annotation_text="parity (1.0x)", annotation_position="top right")
-    return fig
+    return _polish(fig)
 
 
 def chart_treemap_by_recommendation(df: pd.DataFrame) -> go.Figure:
@@ -730,4 +753,4 @@ def chart_treemap_by_recommendation(df: pd.DataFrame) -> go.Figure:
         hover_data={"ticker": True, "composite": ":.0f"},
     )
     fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=540)
-    return fig
+    return _polish(fig)

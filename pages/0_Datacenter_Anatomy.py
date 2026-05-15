@@ -26,12 +26,16 @@ if str(SRC) not in sys.path:
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+st.set_page_config(layout="wide")
+
+from design import apply_design  # noqa: E402
+apply_design()
+
 from dashboard_utils import (  # noqa: E402
     fmt_money, fmt_pct, rec_badge, structure_badge, view_to_dataframe,
 )
 from investment_agent.storage.repository import RunRepository  # noqa: E402
 
-st.set_page_config(layout="wide")
 st.title("AI Datacenter Anatomy")
 st.caption(
     "What actually goes into an AI datacenter — bottom-up. From copper in the "
@@ -59,7 +63,7 @@ LAYERS = [
         "tier": "T+1",
         "name": "Applications",
         "color": "#0ea5e9",
-        "icon": ":sparkles:",
+        "icon": "",
         "blurb": "End-user products: ChatGPT, Claude, Gemini, Copilot, agent frameworks",
         "examples": ["ChatGPT", "Claude", "Gemini", "Perplexity", "Copilot"],
         "components": ["Agent Frameworks"],
@@ -68,7 +72,7 @@ LAYERS = [
         "tier": "T 5",
         "name": "Foundation Models",
         "color": "#a855f7",
-        "icon": ":brain:",
+        "icon": "",
         "blurb": "The model labs training frontier general-purpose intelligence",
         "examples": ["OpenAI", "Anthropic", "Google DeepMind", "Meta", "xAI"],
         "components": ["Foundation Model Labs"],
@@ -77,7 +81,7 @@ LAYERS = [
         "tier": "T 4",
         "name": "Cloud & Compute Platforms",
         "color": "#8b5cf6",
-        "icon": ":cloud:",
+        "icon": "",
         "blurb": "Where models train and serve — hyperscalers + GPU neoclouds",
         "examples": ["AWS", "Azure", "GCP", "CoreWeave", "Lambda"],
         "components": ["Hyperscale Cloud", "GPU Neoclouds"],
@@ -86,7 +90,7 @@ LAYERS = [
         "tier": "T 3",
         "name": "Datacenter Infrastructure",
         "color": "#6366f1",
-        "icon": ":factory:",
+        "icon": "",
         "blurb": "Power, cooling, water — the binding constraint of the AI buildout",
         "examples": ["Vertiv", "Schneider", "Eaton", "Xylem"],
         "components": ["Datacenter Power & Cooling", "Datacenter Water Infrastructure"],
@@ -95,7 +99,7 @@ LAYERS = [
         "tier": "T 2b",
         "name": "Networking & Interconnect",
         "color": "#3b82f6",
-        "icon": ":satellite_antenna:",
+        "icon": "",
         "blurb": "Switches, optical transceivers, NVLink — moves data inside the cluster",
         "examples": ["Broadcom", "Marvell", "Coherent", "Lumentum", "NVIDIA Mellanox"],
         "components": ["Datacenter Networking Silicon", "Optical Interconnect / Transceivers"],
@@ -104,7 +108,7 @@ LAYERS = [
         "tier": "T 2a",
         "name": "Compute Silicon + Memory",
         "color": "#06b6d4",
-        "icon": ":computer:",
+        "icon": "",
         "blurb": "AI accelerators (GPU/TPU) bonded to HBM stacks — the compute engine",
         "examples": ["NVIDIA", "AMD", "Google TPU", "SK Hynix", "Samsung", "Micron"],
         "components": [
@@ -116,7 +120,7 @@ LAYERS = [
         "tier": "T 1",
         "name": "Fabrication & Packaging",
         "color": "#14b8a6",
-        "icon": ":wrench:",
+        "icon": "",
         "blurb": "Where silicon is made: EUV lithography, leading-edge foundry, advanced packaging",
         "examples": ["ASML", "Carl Zeiss SMT", "TSMC", "Samsung Foundry", "Amkor"],
         "components": [
@@ -128,7 +132,7 @@ LAYERS = [
         "tier": "T 0",
         "name": "Raw Materials & Utilities",
         "color": "#f59e0b",
-        "icon": ":pick:",
+        "icon": "",
         "blurb": "Copper, rare earths, industrial gases, photoresist, ABF substrates, water — the physical foundation",
         "examples": [
             "Freeport-McMoRan", "MP Materials", "Linde",
@@ -176,22 +180,24 @@ for layer in LAYERS:
     constraint_chip = ""
     if stats.get("constrained"):
         constraint_chip = (
-            '<span style="background:#dc2626;color:white;padding:2px 8px;'
-            'border-radius:10px;font-size:11px;font-weight:600;margin-left:6px;">'
-            'SUPPLY CONSTRAINED</span>'
+            '<span style="background:rgba(244,63,94,0.08);color:#f43f5e;'
+            'border:1px solid #f43f5e;padding:2px 8px;border-radius:3px;'
+            'font-size:10px;font-weight:600;letter-spacing:0.08em;'
+            'text-transform:uppercase;margin-left:8px;">supply constrained</span>'
         )
     sole_chip = ""
     if stats.get("sole_source"):
         sole_chip = (
-            '<span style="background:#7c3aed;color:white;padding:2px 8px;'
-            'border-radius:10px;font-size:11px;font-weight:600;margin-left:6px;">'
-            'SOLE-SOURCE</span>'
+            '<span style="background:rgba(168,85,247,0.08);color:#a855f7;'
+            'border:1px solid #a855f7;padding:2px 8px;border-radius:3px;'
+            'font-size:10px;font-weight:600;letter-spacing:0.08em;'
+            'text-transform:uppercase;margin-left:8px;">sole-source</span>'
         )
 
     examples_html = "".join(
-        f'<span style="background:rgba(255,255,255,0.10);color:#e5e7eb;'
-        f'padding:3px 10px;border-radius:10px;font-size:12px;margin:2px 4px 2px 0;'
-        f'display:inline-block;">{e}</span>'
+        f'<span style="background:rgba(255,255,255,0.04);color:#94a3b8;'
+        f'border:1px solid #1f2a44;padding:3px 9px;border-radius:3px;'
+        f'font-size:11px;margin:2px 4px 2px 0;display:inline-block;">{e}</span>'
         for e in layer["examples"]
     )
 
@@ -208,29 +214,35 @@ for layer in LAYERS:
 
     html = f"""
     <div style="
-        border-left: 6px solid {layer['color']};
-        background: linear-gradient(90deg, {layer['color']}15 0%, transparent 100%);
-        padding: 14px 20px;
-        margin-bottom: 8px;
-        border-radius: 6px;
+        border-left: 3px solid {layer['color']};
+        background: linear-gradient(90deg, {layer['color']}08 0%, transparent 60%);
+        border-top: 1px solid #1f2a44;
+        border-right: 1px solid #1f2a44;
+        border-bottom: 1px solid #1f2a44;
+        padding: 16px 22px;
+        margin-bottom: 10px;
+        border-radius: 8px;
     ">
         <div style="display:flex;align-items:center;justify-content:space-between;">
             <div>
-                <span style="color:{layer['color']};font-weight:700;font-size:11px;
-                       letter-spacing:1.5px;text-transform:uppercase;">
+                <span style="color:{layer['color']};font-weight:600;font-size:10px;
+                       letter-spacing:0.12em;text-transform:uppercase;
+                       border:1px solid {layer['color']};padding:2px 7px;border-radius:3px;
+                       background:rgba(255,255,255,0.02);">
                     {layer['tier']}
                 </span>
-                <span style="font-size:18px;font-weight:700;color:#f1f5f9;margin-left:10px;">
+                <span style="font-size:17px;font-weight:600;color:#f1f5f9;margin-left:12px;
+                       letter-spacing:-0.01em;">
                     {layer['name']}
                 </span>
                 {constraint_chip}{sole_chip}
             </div>
-            <div style="color:#94a3b8;font-size:13px;">
-                {stats['n_companies']} companies · {stats['n_buys']} BUYs
+            <div style="color:#64748b;font-size:12px;letter-spacing:0.04em;">
+                {stats['n_companies']} companies &nbsp;·&nbsp; {stats['n_buys']} BUYs
             </div>
         </div>
-        <div style="color:#94a3b8;font-size:13px;margin-top:4px;">{layer['blurb']}</div>
-        <div style="margin-top:8px;">{examples_html}</div>
+        <div style="color:#94a3b8;font-size:13px;margin-top:6px;line-height:1.5;">{layer['blurb']}</div>
+        <div style="margin-top:10px;">{examples_html}</div>
         {top_str}
     </div>
     """
@@ -447,10 +459,10 @@ st.markdown("---")
 st.markdown("### Where to next?")
 nav_cols = st.columns(4)
 with nav_cols[0]:
-    st.page_link("pages/2_Components.py", label="Components", icon=":package:")
+    st.page_link("pages/2_Components.py", label="Components", icon="")
 with nav_cols[1]:
-    st.page_link("pages/3_Investment_Thesis.py", label="Investment Thesis", icon=":bar_chart:")
+    st.page_link("pages/3_Investment_Thesis.py", label="Investment Thesis", icon="")
 with nav_cols[2]:
-    st.page_link("pages/4_Investor_Council.py", label="Investor Council", icon=":classical_building:")
+    st.page_link("pages/4_Investor_Council.py", label="Investor Council", icon="")
 with nav_cols[3]:
-    st.page_link("pages/5_Portfolio.py", label="Portfolio", icon=":bookmark_tabs:")
+    st.page_link("pages/5_Portfolio.py", label="Portfolio", icon="")
