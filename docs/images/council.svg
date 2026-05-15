@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 720" font-family="-apple-system, 'Segoe UI', sans-serif">
+  <defs>
+    <style>
+      .card{fill:#131c30;stroke:#1f2a44;stroke-width:1.5;rx:10}
+      .investor-name{font-weight:700;font-size:13px;fill:#f1f5f9;letter-spacing:-0.01em}
+      .investor-firm{font-size:10px;fill:#64748b;letter-spacing:0.06em;text-transform:uppercase}
+      .investor-style{font-size:10px;letter-spacing:0.06em;text-transform:uppercase;font-weight:600}
+      .quote{font-size:10.5px;fill:#94a3b8;font-style:italic}
+      .header{font-weight:700;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;fill:#f1f5f9}
+    </style>
+  </defs>
+
+  <rect width="1080" height="720" fill="#0b1220"/>
+
+  <text x="540" y="40" text-anchor="middle" font-size="22" font-weight="700" fill="#f1f5f9" letter-spacing="-0.02em">Council of Legendary Investors</text>
+  <text x="540" y="62" text-anchor="middle" font-size="13" fill="#94a3b8">Nine distinct lenses · five bull voices · four bear voices · debate-driven analysis</text>
+
+  <!-- BULL HEADER -->
+  <rect x="40" y="100" width="500" height="32" fill="#0d2114" stroke="#10b981" rx="6"/>
+  <text x="60" y="121" class="header" fill="#10b981">▲  BULL VOICES (5)</text>
+
+  <!-- BEAR HEADER -->
+  <rect x="560" y="100" width="480" height="32" fill="#21070d" stroke="#f43f5e" rx="6"/>
+  <text x="580" y="121" class="header" fill="#f43f5e">▼  BEAR VOICES (4)</text>
+
+  <!-- BULL CARDS -->
+
+  <!-- Buffett -->
+  <rect x="40" y="145" width="240" height="170" class="card"/>
+  <circle cx="68" cy="173" r="16" fill="rgba(34,211,238,0.15)" stroke="#22d3ee"/>
+  <text x="68" y="178" text-anchor="middle" font-size="11" font-weight="700" fill="#22d3ee">WB</text>
+  <text x="95" y="170" class="investor-name">Warren Buffett</text>
+  <text x="95" y="184" class="investor-firm">Berkshire · QUALITY+VALUE</text>
+  <text x="60" y="218" class="quote">"It is far better to buy a</text>
+  <text x="60" y="232" class="quote">wonderful company at a fair</text>
+  <text x="60" y="246" class="quote">price than a fair company at</text>
+  <text x="60" y="260" class="quote">a wonderful price."</text>
+  <text x="60" y="290" font-size="10" fill="#cbd5e1">Anchors: ROIC, P/E&lt;25, op margin,</text>
+  <text x="60" y="304" font-size="10" fill="#cbd5e1">net cash position</text>
+
+  <!-- Munger -->
+  <rect x="290" y="145" width="240" height="170" class="card"/>
+  <circle cx="318" cy="173" r="16" fill="rgba(163,230,53,0.15)" stroke="#a3e635"/>
+  <text x="318" y="178" text-anchor="middle" font-size="11" font-weight="700" fill="#a3e635">CM</text>
+  <text x="345" y="170" class="investor-name">Charlie Munger</text>
+  <text x="345" y="184" class="investor-firm">Berkshire · QUALITY</text>
+  <text x="310" y="218" class="quote">"It's not supposed to be</text>
+  <text x="310" y="232" class="quote">easy. Anyone who finds it</text>
+  <text x="310" y="246" class="quote">easy is stupid."</text>
+  <text x="310" y="290" font-size="10" fill="#cbd5e1">Anchors: ROIC-WACC spread,</text>
+  <text x="310" y="304" font-size="10" fill="#cbd5e1">capital allocators, lollapaloozas</text>
+
+  <!-- Lynch -->
+  <rect x="40" y="325" width="240" height="170" class="card"/>
+  <circle cx="68" cy="353" r="16" fill="rgba(251,191,36,0.15)" stroke="#fbbf24"/>
+  <text x="68" y="358" text-anchor="middle" font-size="11" font-weight="700" fill="#fbbf24">PL</text>
+  <text x="95" y="350" class="investor-name">Peter Lynch</text>
+  <text x="95" y="364" class="investor-firm">Fidelity Magellan · GARP</text>
+  <text x="60" y="398" class="quote">"Know what you own, and</text>
+  <text x="60" y="412" class="quote">know why you own it."</text>
+  <text x="60" y="442" font-size="10" fill="#cbd5e1">Anchors: PEG&lt;1.5, fwd growth&gt;15%,</text>
+  <text x="60" y="456" font-size="10" fill="#cbd5e1">understandable products</text>
+
+  <!-- Druckenmiller -->
+  <rect x="290" y="325" width="240" height="170" class="card"/>
+  <circle cx="318" cy="353" r="16" fill="rgba(16,185,129,0.15)" stroke="#10b981"/>
+  <text x="318" y="358" text-anchor="middle" font-size="11" font-weight="700" fill="#10b981">SD</text>
+  <text x="345" y="350" class="investor-name">Stan Druckenmiller</text>
+  <text x="345" y="364" class="investor-firm">Duquesne · MACRO+CONC</text>
+  <text x="310" y="398" class="quote">"When you have tremendous</text>
+  <text x="310" y="412" class="quote">conviction, you have to go</text>
+  <text x="310" y="426" class="quote">for the jugular."</text>
+  <text x="310" y="456" font-size="10" fill="#cbd5e1">Anchors: capacity-constrained,</text>
+  <text x="310" y="470" font-size="10" fill="#cbd5e1">hyperscaler beta, EPS revisions</text>
+
+  <!-- Wood -->
+  <rect x="40" y="505" width="490" height="170" class="card"/>
+  <circle cx="68" cy="533" r="16" fill="rgba(244,114,182,0.15)" stroke="#f472b6"/>
+  <text x="68" y="538" text-anchor="middle" font-size="11" font-weight="700" fill="#f472b6">CW</text>
+  <text x="95" y="530" class="investor-name">Cathie Wood</text>
+  <text x="95" y="544" class="investor-firm">ARK Invest · DISRUPTIVE INNOVATION</text>
+  <text x="60" y="578" class="quote">"Innovation solves problems and gains traction during turbulent</text>
+  <text x="60" y="592" class="quote">times — that's when investors should be increasing exposure."</text>
+  <text x="60" y="622" font-size="10" fill="#cbd5e1">Anchors: fwd rev growth &gt;30%, platform shifts (AI accelerators,</text>
+  <text x="60" y="636" font-size="10" fill="#cbd5e1">foundation models), industrial-policy backing</text>
+
+  <!-- BEAR CARDS -->
+
+  <!-- Graham -->
+  <rect x="560" y="145" width="240" height="170" class="card"/>
+  <circle cx="588" cy="173" r="16" fill="rgba(148,163,184,0.15)" stroke="#94a3b8"/>
+  <text x="588" y="178" text-anchor="middle" font-size="11" font-weight="700" fill="#94a3b8">BG</text>
+  <text x="615" y="170" class="investor-name">Benjamin Graham</text>
+  <text x="615" y="184" class="investor-firm">Graham-Newman · DEEP VALUE</text>
+  <text x="580" y="218" class="quote">"The intelligent investor sells</text>
+  <text x="580" y="232" class="quote">to optimists and buys from</text>
+  <text x="580" y="246" class="quote">pessimists."</text>
+  <text x="580" y="290" font-size="10" fill="#cbd5e1">Anchors: P/E&lt;15, EV/EBITDA&lt;10,</text>
+  <text x="580" y="304" font-size="10" fill="#cbd5e1">dividend cushion, low debt</text>
+
+  <!-- Marks -->
+  <rect x="810" y="145" width="230" height="170" class="card"/>
+  <circle cx="838" cy="173" r="16" fill="rgba(251,146,60,0.15)" stroke="#fb923c"/>
+  <text x="838" y="178" text-anchor="middle" font-size="11" font-weight="700" fill="#fb923c">HM</text>
+  <text x="865" y="170" class="investor-name">Howard Marks</text>
+  <text x="865" y="184" class="investor-firm">Oaktree · CYCLE-AWARE</text>
+  <text x="830" y="218" class="quote">"The most dangerous words</text>
+  <text x="830" y="232" class="quote">in investing are 'this time</text>
+  <text x="830" y="246" class="quote">it's different.'"</text>
+  <text x="830" y="290" font-size="10" fill="#cbd5e1">Flags: euphoria signals stacked,</text>
+  <text x="830" y="304" font-size="10" fill="#cbd5e1">crowded long, insider exit</text>
+
+  <!-- Burry -->
+  <rect x="560" y="325" width="240" height="170" class="card"/>
+  <circle cx="588" cy="353" r="16" fill="rgba(244,63,94,0.15)" stroke="#f43f5e"/>
+  <text x="588" y="358" text-anchor="middle" font-size="11" font-weight="700" fill="#f43f5e">MB</text>
+  <text x="615" y="350" class="investor-name">Michael Burry</text>
+  <text x="615" y="364" class="investor-firm">Scion · BUBBLE CALLER</text>
+  <text x="580" y="398" class="quote">"What is most amazing is</text>
+  <text x="580" y="412" class="quote">not just the boom, but the</text>
+  <text x="580" y="426" class="quote">broad complacency about it."</text>
+  <text x="580" y="456" font-size="10" fill="#cbd5e1">Flags: P/E&gt;40, PEG&gt;2.5, FCF burn,</text>
+  <text x="580" y="470" font-size="10" fill="#cbd5e1">AI hype at 30x+ fwd</text>
+
+  <!-- Dalio -->
+  <rect x="810" y="325" width="230" height="170" class="card"/>
+  <circle cx="838" cy="353" r="16" fill="rgba(96,165,250,0.15)" stroke="#60a5fa"/>
+  <text x="838" y="358" text-anchor="middle" font-size="11" font-weight="700" fill="#60a5fa">RD</text>
+  <text x="865" y="350" class="investor-name">Ray Dalio</text>
+  <text x="865" y="364" class="investor-firm">Bridgewater · MACRO/GEO</text>
+  <text x="830" y="398" class="quote">"He who lives by the crystal</text>
+  <text x="830" y="412" class="quote">ball will eat shattered glass."</text>
+  <text x="830" y="456" font-size="10" fill="#cbd5e1">Flags: China rev &gt;25%, top-1</text>
+  <text x="830" y="470" font-size="10" fill="#cbd5e1">customer &gt;40%, no dividend cushion</text>
+
+  <!-- Footer: consensus mechanic -->
+  <rect x="40" y="700" width="1000" height="0" fill="none"/>
+  <text x="540" y="700" text-anchor="middle" font-size="11" fill="#94a3b8">Each company gets all 9 verdicts → consensus label: UNANIMOUS BUY · MAJORITY BUY · DIVIDED · MAJORITY AVOID</text>
+</svg>

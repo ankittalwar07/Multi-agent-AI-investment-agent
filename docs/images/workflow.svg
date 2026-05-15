@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 560" font-family="-apple-system, 'Segoe UI', sans-serif">
+  <defs>
+    <style>
+      .step{fill:#131c30;stroke:#1f2a44;stroke-width:1.5;rx:10}
+      .title{font-weight:700;font-size:14px;fill:#f1f5f9;letter-spacing:-0.01em}
+      .sub{font-size:11px;fill:#94a3b8;letter-spacing:0.04em;text-transform:uppercase}
+      .body{font-size:12px;fill:#cbd5e1}
+      .note{font-size:10px;fill:#64748b;font-style:italic}
+      .step-num{font-size:22px;font-weight:800;letter-spacing:-0.02em}
+      .arr{stroke:#475569;stroke-width:2.5;fill:none;marker-end:url(#a)}
+    </style>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <rect width="1080" height="560" fill="#0b1220"/>
+
+  <!-- Header -->
+  <text x="540" y="40" text-anchor="middle" font-size="22" font-weight="700" fill="#f1f5f9" letter-spacing="-0.02em">User Workflow — Hit run once, refine, walk away</text>
+  <text x="540" y="62" text-anchor="middle" font-size="13" fill="#94a3b8">From "I want to find AI investments" → polished investment brief, in 4 steps</text>
+
+  <!-- Step 1 -->
+  <rect x="30" y="100" width="240" height="220" class="step"/>
+  <text x="50" y="130" class="step-num" fill="#22d3ee">1</text>
+  <text x="50" y="155" class="sub" fill="#22d3ee">Quick Triage</text>
+  <text x="50" y="180" class="title">Click "Quick triage"</text>
+  <text x="50" y="200" class="body">One cheap LLM call per</text>
+  <text x="50" y="216" class="body">market layer (~25 calls).</text>
+  <text x="50" y="232" class="body">Returns 3-5 incumbents</text>
+  <text x="50" y="248" class="body">per layer.</text>
+  <text x="50" y="278" class="note">~30 seconds · ~75k tokens</text>
+  <text x="50" y="294" class="note">Free quota: 7-8%</text>
+
+  <path d="M275,210 L295,210" class="arr"/>
+
+  <!-- Step 2 -->
+  <rect x="300" y="100" width="240" height="220" class="step"/>
+  <text x="320" y="130" class="step-num" fill="#fbbf24">2</text>
+  <text x="320" y="155" class="sub" fill="#fbbf24">Browse · Find · Mark</text>
+  <text x="320" y="180" class="title">Mark interesting names</text>
+  <text x="320" y="200" class="body">Browse Home / Council /</text>
+  <text x="320" y="216" class="body">Components pages.</text>
+  <text x="320" y="232" class="body">Click "+ Deep dive" on</text>
+  <text x="320" y="248" class="body">anything that catches</text>
+  <text x="320" y="264" class="body">your eye.</text>
+  <text x="320" y="294" class="note">Persistent queue in sidebar</text>
+
+  <path d="M545,210 L565,210" class="arr"/>
+
+  <!-- Step 3 -->
+  <rect x="570" y="100" width="240" height="220" class="step"/>
+  <text x="590" y="130" class="step-num" fill="#f43f5e">3</text>
+  <text x="590" y="155" class="sub" fill="#f43f5e">Run Deep Dive</text>
+  <text x="590" y="180" class="title">Click "Run dive" once</text>
+  <text x="590" y="200" class="body">Full ReAct research on</text>
+  <text x="590" y="216" class="body">just your picked names.</text>
+  <text x="590" y="232" class="body">Background thread —</text>
+  <text x="590" y="248" class="body">no waiting.</text>
+  <text x="590" y="278" class="note">~2-3 min on cloud</text>
+  <text x="590" y="294" class="note">~15-30 min on local Ollama</text>
+
+  <path d="M815,210 L835,210" class="arr"/>
+
+  <!-- Step 4 -->
+  <rect x="840" y="100" width="220" height="220" class="step"/>
+  <text x="860" y="130" class="step-num" fill="#10b981">4</text>
+  <text x="860" y="155" class="sub" fill="#10b981">Read &amp; Decide</text>
+  <text x="860" y="180" class="title">Investment Thesis page</text>
+  <text x="860" y="200" class="body">Full report: P/E, ROIC,</text>
+  <text x="860" y="216" class="body">customer concentration,</text>
+  <text x="860" y="232" class="body">bull/bear sliders, council</text>
+  <text x="860" y="248" class="body">verdicts, intel signals,</text>
+  <text x="860" y="264" class="body">cited sources.</text>
+  <text x="860" y="294" class="note">Make the call.</text>
+
+  <!-- Lower band: token cost -->
+  <rect x="40" y="370" width="1000" height="40" fill="#0f1828" stroke="#1f2a44" rx="6"/>
+  <text x="60" y="395" class="title" fill="#22d3ee">Total daily cost · cloud free tier: ~$0 · ~280k tokens of available ~1.5M</text>
+
+  <!-- Footer with detail -->
+  <rect x="40" y="430" width="1000" height="100" fill="#0a1422" stroke="#1f2a44" rx="6"/>
+  <text x="60" y="455" class="title">Optimizations that make this cheap</text>
+  <text x="60" y="478" class="body">  · Two-tier (triage → deep) cuts tokens 50%+ vs deep-on-everyone</text>
+  <text x="60" y="496" class="body">  · Multi-provider rotation: when Gemini 429s, switch to Groq; when both, fall back to local Ollama (unlimited)</text>
+  <text x="60" y="514" class="body">  · Resumable pipeline: hit Ctrl-C any time; resume picks up exactly where it stopped</text>
+</svg>

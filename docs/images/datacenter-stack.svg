@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 760" font-family="-apple-system, 'Segoe UI', sans-serif">
+  <defs>
+    <style>
+      .layer{stroke-width:1.5;rx:8}
+      .title{font-weight:700;font-size:14px;letter-spacing:-0.01em}
+      .sub{font-size:11px;fill:#cbd5e1;letter-spacing:0.04em;text-transform:uppercase;font-weight:600}
+      .body{font-size:11.5px;fill:#cbd5e1}
+      .tier{font-weight:700;font-size:11px;letter-spacing:0.12em;text-transform:uppercase}
+      .chip{font-size:10px;fill:#94a3b8}
+      .flag{font-size:10px;font-weight:700;letter-spacing:0.06em}
+    </style>
+  </defs>
+
+  <rect width="1080" height="760" fill="#0b1220"/>
+
+  <text x="540" y="40" text-anchor="middle" font-size="22" font-weight="700" fill="#f1f5f9" letter-spacing="-0.02em">AI Datacenter — The Full Stack</text>
+  <text x="540" y="62" text-anchor="middle" font-size="13" fill="#94a3b8">From copper in the wires (T0) up through ChatGPT/Claude apps (T+1)</text>
+
+  <!-- T+1 Applications -->
+  <rect x="40" y="90" width="1000" height="56" class="layer" fill="#031628" stroke="#0ea5e9"/>
+  <text x="60" y="115" class="tier" fill="#0ea5e9">T +1  ·  APPLICATIONS</text>
+  <text x="60" y="135" class="body">ChatGPT · Claude · Gemini · Copilot · Perplexity · agent frameworks</text>
+
+  <!-- T5 Foundation Models -->
+  <rect x="40" y="155" width="1000" height="56" class="layer" fill="#1a0a2e" stroke="#a855f7"/>
+  <text x="60" y="180" class="tier" fill="#a855f7">T 5  ·  FOUNDATION MODELS</text>
+  <text x="60" y="200" class="body">OpenAI · Anthropic · Google DeepMind · Meta AI (Llama) · xAI · Mistral</text>
+
+  <!-- T4 Cloud -->
+  <rect x="40" y="220" width="1000" height="56" class="layer" fill="#160d2e" stroke="#8b5cf6"/>
+  <text x="60" y="245" class="tier" fill="#8b5cf6">T 4  ·  CLOUD &amp; COMPUTE PLATFORMS</text>
+  <text x="60" y="265" class="body">AWS · Microsoft Azure · Google Cloud · Oracle Cloud · CoreWeave · Lambda · Crusoe</text>
+
+  <!-- T3 Datacenter Infra -->
+  <rect x="40" y="285" width="1000" height="56" class="layer" fill="#0e1230" stroke="#6366f1"/>
+  <text x="60" y="310" class="tier" fill="#6366f1">T 3  ·  DATACENTER INFRASTRUCTURE</text>
+  <text x="60" y="330" class="body">Vertiv · Schneider Electric · Eaton · Xylem · Pentair  —  power, cooling, water</text>
+  <rect x="930" y="293" width="100" height="18" rx="3" fill="rgba(244,63,94,0.10)" stroke="#f43f5e"/>
+  <text x="980" y="307" text-anchor="middle" class="flag" fill="#f43f5e">CONSTRAINED</text>
+
+  <!-- T2b Networking -->
+  <rect x="40" y="350" width="1000" height="56" class="layer" fill="#0a1a30" stroke="#3b82f6"/>
+  <text x="60" y="375" class="tier" fill="#3b82f6">T 2b ·  NETWORKING &amp; INTERCONNECT</text>
+  <text x="60" y="395" class="body">Broadcom · Marvell · NVIDIA Mellanox · Coherent · Lumentum · Innolight  —  switch silicon + optical</text>
+
+  <!-- T2a Compute + Memory -->
+  <rect x="40" y="415" width="1000" height="76" class="layer" fill="#072026" stroke="#06b6d4"/>
+  <text x="60" y="440" class="tier" fill="#06b6d4">T 2a ·  COMPUTE SILICON + MEMORY</text>
+  <text x="60" y="460" class="body">NVIDIA · AMD · Google TPU · AWS Trainium · Microsoft Maia  —  accelerators</text>
+  <text x="60" y="478" class="body">SK Hynix · Samsung · Micron  —  HBM (high-bandwidth memory)</text>
+  <rect x="900" y="423" width="130" height="18" rx="3" fill="rgba(244,63,94,0.10)" stroke="#f43f5e"/>
+  <text x="965" y="437" text-anchor="middle" class="flag" fill="#f43f5e">SUPPLY CONSTRAINED</text>
+
+  <!-- T1 Fabrication -->
+  <rect x="40" y="500" width="1000" height="76" class="layer" fill="#0a201d" stroke="#14b8a6"/>
+  <text x="60" y="525" class="tier" fill="#14b8a6">T 1  ·  FABRICATION &amp; PACKAGING</text>
+  <text x="60" y="545" class="body">ASML (sole EUV) · Carl Zeiss SMT (sole optics)  —  photolithography</text>
+  <text x="60" y="563" class="body">TSMC · Samsung Foundry · Intel Foundry · TSMC CoWoS · Amkor  —  fab + advanced packaging</text>
+  <rect x="930" y="508" width="100" height="18" rx="3" fill="rgba(168,85,247,0.10)" stroke="#a855f7"/>
+  <text x="980" y="522" text-anchor="middle" class="flag" fill="#a855f7">SOLE-SOURCE</text>
+
+  <!-- T0 Raw Materials -->
+  <rect x="40" y="585" width="1000" height="96" class="layer" fill="#1f1505" stroke="#f59e0b"/>
+  <text x="60" y="610" class="tier" fill="#f59e0b">T 0  ·  RAW MATERIALS &amp; UTILITIES</text>
+  <text x="60" y="630" class="body">Freeport-McMoRan · Southern Copper · BHP  —  copper for power distribution</text>
+  <text x="60" y="648" class="body">MP Materials · Lynas  —  rare earths · magnets · DoD Title III</text>
+  <text x="60" y="666" class="body">Linde · Air Products · Air Liquide  —  industrial gases  ·  Shin-Etsu · JSR  —  photoresist  ·  Ibiden · Unimicron  —  ABF substrates</text>
+
+  <!-- Footer note -->
+  <text x="540" y="715" text-anchor="middle" font-size="12" fill="#94a3b8" font-style="italic">Each tier is a market with its own bottlenecks, market structure, and incumbents.</text>
+  <text x="540" y="735" text-anchor="middle" font-size="12" fill="#94a3b8" font-style="italic">The dashboard surfaces opportunities at every layer — especially the underrated upstream (T0, T1).</text>
+</svg>

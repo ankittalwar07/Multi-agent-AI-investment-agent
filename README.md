@@ -16,6 +16,8 @@ Runs on **five LLM provider options**: Google Gemini (free), Groq Llama (free),
 **local Ollama** (free, no rate limits, full privacy), Anthropic Claude (paid),
 OpenAI GPT (paid) — auto-rotates between them when one throttles.
 
+![Architecture diagram — agents, LLM provider chain, deterministic stages](docs/images/architecture.svg)
+
 ---
 
 ## The problem this solves
@@ -47,6 +49,8 @@ This dashboard delivers all five.
 
 After running once (~30 seconds for free triage; ~2 minutes for deep dives on
 your top picks):
+
+![AI Datacenter stack — from copper to applications](docs/images/datacenter-stack.svg)
 
 - **Executive Summary** — top 5 high-conviction picks with recommendation
   badges (STRONG BUY / BUY / HOLD), expected 12-month return, and the
@@ -162,6 +166,8 @@ run a full ~60-company analysis in ~75 LLM calls total.
 ---
 
 ## The Council of Legendary Investors
+
+![Council of 9 — 5 bull voices + 4 bear voices](docs/images/council.svg)
 
 Each company is reviewed through nine distinct lenses. This is the most
 important design decision in the dashboard: **a single AI hallucinating one
@@ -359,6 +365,8 @@ always paired with a bear case.
 ---
 
 ## Quickstart — running it yourself
+
+![User workflow — triage, mark, deep dive, decide](docs/images/workflow.svg)
 
 ### Option A: Free cloud path with Gemini + Groq (recommended)
 
@@ -610,9 +618,18 @@ them via the documented public sources.
   design decisions with rationale. Read this if you want to explain the
   framework to a non-technical stakeholder.
 - [**docs/cost-optimization.md**](docs/cost-optimization.md) — focused
-  one-pager on the four cost optimizations: two-tier triage, multi-provider
-  rotation, resumable pipeline, deterministic rubrics. Token math
-  worked out. Read this if your question is "why does this run free?"
+  one-pager on the five cost optimizations: two-tier triage, multi-provider
+  rotation, resumable pipeline, deterministic rubrics, local Ollama fallback.
+  Token math worked out. Read this if your question is "why does this run free?"
+- [**docs/glossary.md**](docs/glossary.md) — non-technical definitions of
+  every jargon term used in the dashboard and docs (P/E, ROIC, PEG, TPM,
+  ReAct, CHIPS Act, sole-source, moat composite, etc.).
+- [**docs/images/**](docs/images/) — SVG diagrams (architecture, workflow,
+  datacenter anatomy, council of investors) — render natively in GitHub
+  and scale to any size.
+- [**CONTRIBUTING.md**](CONTRIBUTING.md) — dev environment setup, where to
+  find things in the code, common contribution recipes (adding a new
+  investor, market layer, LLM provider, etc.).
 
 ## Status & contributing
 

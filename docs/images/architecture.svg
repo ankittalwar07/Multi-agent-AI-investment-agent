@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 920" font-family="-apple-system, 'Segoe UI', sans-serif">
+  <defs>
+    <style>
+      .card{fill:#131c30;stroke:#1f2a44;stroke-width:1.5;rx:10}
+      .agent{fill:#0f1a30;stroke:#334155;stroke-width:1.5;rx:8}
+      .det{fill:#0c1a17;stroke:#10b981;stroke-width:1.5;rx:8}
+      .provider{fill:#0c1828;stroke-width:1.5;rx:10}
+      .title{font-weight:700;font-size:14px;fill:#f1f5f9;letter-spacing:-0.01em}
+      .sub{font-size:11px;fill:#94a3b8;letter-spacing:0.04em}
+      .label{font-size:11px;fill:#cbd5e1}
+      .note{font-size:10px;fill:#64748b;font-style:italic}
+      .arr{stroke:#475569;stroke-width:1.5;fill:none;marker-end:url(#a)}
+      .arr-rotate{stroke:#22d3ee;stroke-width:2;fill:none;marker-end:url(#cy);stroke-dasharray:4 3}
+      .arr-down{stroke:#94a3b8;stroke-width:2.2;fill:none;marker-end:url(#g)}
+      .badge-py{fill:#10b981;font-size:9px;font-weight:700;letter-spacing:0.06em}
+    </style>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <marker id="cy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/>
+    </marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <rect width="1080" height="920" fill="#0b1220"/>
+
+  <!-- Header -->
+  <text x="540" y="40" text-anchor="middle" font-size="22" font-weight="700" fill="#f1f5f9" letter-spacing="-0.02em">AI Infrastructure — Investment Brief</text>
+  <text x="540" y="62" text-anchor="middle" font-size="13" fill="#94a3b8">Multi-agent architecture · v4 · May 2026</text>
+
+  <!-- LLM Provider Layer -->
+  <rect x="40" y="90" width="1000" height="150" class="card"/>
+  <text x="60" y="115" class="title">LLM Provider Layer — MultiProviderLLM rotates on 429 / quota exhausted</text>
+  <text x="60" y="132" class="sub">Every agent's LLM call routes through here. Auto-falls-back when one provider throttles.</text>
+
+  <!-- Gemini -->
+  <rect x="80" y="150" width="270" height="70" class="provider" stroke="#22d3ee"/>
+  <text x="100" y="170" class="title" fill="#22d3ee">Gemini 2.0 Flash</text>
+  <text x="100" y="188" class="label">Cloud · ~1M tokens / day · free tier</text>
+  <text x="100" y="205" class="note">Try first — fastest, best general quality</text>
+
+  <!-- Groq -->
+  <rect x="395" y="150" width="270" height="70" class="provider" stroke="#a3e635"/>
+  <text x="415" y="170" class="title" fill="#a3e635">Groq Llama 3.1 8B</text>
+  <text x="415" y="188" class="label">Cloud · ~500k tokens / day · free tier</text>
+  <text x="415" y="205" class="note">2nd fallback — fast, separate quota</text>
+
+  <!-- Ollama -->
+  <rect x="710" y="150" width="290" height="70" class="provider" stroke="#10b981"/>
+  <text x="730" y="170" class="title" fill="#10b981">Ollama qwen2.5:7b (LOCAL)</text>
+  <text x="730" y="188" class="label">Your machine · UNLIMITED · $0 · privacy</text>
+  <text x="730" y="205" class="note">Final fallback — never throttles, slower</text>
+
+  <!-- rotation arrows -->
+  <path d="M350,185 L395,185" class="arr-rotate"/>
+  <text x="372" y="180" text-anchor="middle" font-size="9" fill="#22d3ee" font-weight="700">429</text>
+  <path d="M665,185 L710,185" class="arr-rotate"/>
+  <text x="687" y="180" text-anchor="middle" font-size="9" fill="#22d3ee" font-weight="700">429</text>
+
+  <!-- Arrow down to pipeline -->
+  <path d="M540,240 L540,275" class="arr-down"/>
+  <text x="555" y="260" font-size="10" fill="#64748b" font-style="italic">routes every LLM call</text>
+
+  <!-- AGENT PIPELINE -->
+  <text x="540" y="298" text-anchor="middle" font-size="16" font-weight="700" fill="#f1f5f9">Agent Pipeline</text>
+
+  <!-- Decomposer -->
+  <rect x="370" y="320" width="340" height="60" class="agent"/>
+  <text x="390" y="343" class="title">1 · Decomposer</text>
+  <text x="390" y="363" class="label">Breaks AI stack into ~25 components from seed taxonomy</text>
+  <path d="M540,380 L540,415" class="arr-down"/>
+  <text x="555" y="402" font-size="10" fill="#64748b" font-style="italic">fan-out per component</text>
+
+  <!-- Tier 1 Triage -->
+  <rect x="40" y="420" width="1000" height="90" class="agent" stroke="#fbbf24"/>
+  <text x="60" y="445" class="title" fill="#fbbf24">2 · Triage Researcher (TIER 1 — cheap, ~25 LLM calls)</text>
+  <text x="60" y="465" class="label">One LLM call per component. Returns 3-5 sparse incumbents per layer.</text>
+  <text x="60" y="483" class="note">~75k tokens total · ~30 seconds on Gemini</text>
+  <text x="900" y="465" text-anchor="end" class="label" fill="#fbbf24">all ~60 companies</text>
+
+  <!-- USER picks -->
+  <path d="M540,510 L540,535" class="arr-down" stroke="#f59e0b"/>
+  <rect x="380" y="540" width="320" height="40" fill="#1b1308" stroke="#f59e0b" rx="6"/>
+  <text x="540" y="566" text-anchor="middle" font-size="13" font-weight="600" fill="#f59e0b">USER picks high-conviction names</text>
+  <text x="900" y="565" text-anchor="end" class="note">via deep-dive queue (any page)</text>
+
+  <path d="M540,580 L540,605" class="arr-down" stroke="#f43f5e"/>
+
+  <!-- Tier 2 Deep -->
+  <rect x="40" y="610" width="1000" height="90" class="agent" stroke="#f43f5e"/>
+  <text x="60" y="635" class="title" fill="#f43f5e">3 · Deep-Dive Researcher (TIER 2 — expensive, full ReAct + web search)</text>
+  <text x="60" y="655" class="label">Full earnings power · risk · scenario · cited evidence — only on user-picked names</text>
+  <text x="60" y="673" class="note">~200k tokens for 10 companies · ~2 min on Gemini, ~25 min on local Ollama</text>
+  <text x="1000" y="655" text-anchor="end" class="label" fill="#f43f5e">~10 picks</text>
+
+  <path d="M540,700 L540,725" class="arr-down"/>
+
+  <!-- Deterministic stages -->
+  <rect x="40" y="730" width="320" height="70" class="det"/>
+  <text x="60" y="752" class="title" fill="#10b981">4 · Concentration Analyzer</text>
+  <text x="60" y="770" class="label">Moat 0-100 across 6 dimensions</text>
+  <text x="60" y="788" class="badge-py">PURE PYTHON · 0 TOKENS</text>
+
+  <rect x="380" y="730" width="320" height="70" class="det"/>
+  <text x="400" y="752" class="title" fill="#10b981">5 · Intelligence Agent</text>
+  <text x="400" y="770" class="label">CHIPS Act · DoD · Congress · BIS</text>
+  <text x="400" y="788" class="badge-py">DETERMINISTIC SIGNAL AGGREGATOR</text>
+
+  <rect x="720" y="730" width="320" height="70" class="det"/>
+  <text x="740" y="752" class="title" fill="#10b981">6 · Council of 9 Investors</text>
+  <text x="740" y="770" class="label">Each persona votes via their rubric</text>
+  <text x="740" y="788" class="badge-py">PURE PYTHON · 0 TOKENS</text>
+
+  <path d="M540,800 L540,830" class="arr-down"/>
+
+  <!-- Synth -->
+  <rect x="370" y="835" width="340" height="50" class="agent"/>
+  <text x="390" y="857" class="title">7 · Synthesizer</text>
+  <text x="390" y="875" class="label">Rank all · write final investment brief</text>
+
+  <!-- Output note -->
+  <text x="540" y="908" text-anchor="middle" font-size="11" fill="#94a3b8" font-style="italic">→ SQLite (one DB per run) + Streamlit dashboard with 9-investor council, scenario math, intelligence signals</text>
+</svg>
