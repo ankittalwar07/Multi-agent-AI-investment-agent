@@ -118,10 +118,21 @@ class OllamaProvider(LLMProvider):
         except Exception as e:
             msg = str(e)
             if "Connection" in msg or "refused" in msg.lower() or "connect" in msg.lower():
+                # Detect the "running on Streamlit Cloud but pointing at localhost" trap
+                is_localhost = "localhost" in self._base_url or "127.0.0.1" in self._base_url
+                hint = (
+                    "\n  NOTE: If this is Streamlit Cloud, localhost refers to the "
+                    "cloud container, not your laptop. Either:\n"
+                    "    (a) run Streamlit locally on the same machine as Ollama, OR\n"
+                    "    (b) expose your local Ollama via a tunnel (cloudflared/ngrok)\n"
+                    "        and set OLLAMA_BASE_URL to the public tunnel URL."
+                    if is_localhost else ""
+                )
                 raise RuntimeError(
                     f"Could not reach Ollama at {self._base_url}. "
                     "Is Ollama running? Start it with `ollama serve` or open the "
-                    "Ollama app. Verify with `curl http://localhost:11434/api/tags`."
+                    f"Ollama app. Verify with `curl {self._base_url.rstrip('/v1')}/api/tags`."
+                    f"{hint}"
                 ) from e
             if "model" in msg.lower() and ("not found" in msg.lower() or "pull" in msg.lower()):
                 raise RuntimeError(

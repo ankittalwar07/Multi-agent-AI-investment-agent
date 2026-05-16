@@ -67,7 +67,7 @@ PROVIDER_HINTS = {
     "multi": "Rotates Gemini → Groq on rate limits. Best for long runs. Needs both keys set.",
     "gemini": "Free tier — get key at aistudio.google.com/apikey",
     "groq": "Free tier — Llama 3.1 8B Instant has 500k tokens/day (5x the 70B). Get key at console.groq.com/keys",
-    "ollama": "Local open-source models — no rate limits, no cost, full privacy. Install Ollama from ollama.com, then `ollama pull qwen2.5:7b`",
+    "ollama": "Local open-source — install from ollama.com, `ollama pull qwen2.5:7b`. NOTE: Streamlit Cloud can't reach your laptop's localhost — run Streamlit locally, OR tunnel Ollama via cloudflared and set OLLAMA_BASE_URL secret.",
     "anthropic": "Paid — claude-sonnet-4-6",
     "openai": "Paid — gpt-4o",
     "mock": "No API call — hand-crafted demo data",

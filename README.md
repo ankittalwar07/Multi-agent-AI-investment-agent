@@ -398,31 +398,67 @@ button anywhere in the dashboard, then click **Run dive** in the sidebar.
 Best for **overnight runs** where you don't want to worry about quotas, or
 when you want the data to never leave your machine.
 
+> **Important — Ollama needs to be on the SAME machine that runs Streamlit.**
+> If you deploy the dashboard to Streamlit Cloud, the cloud container's
+> `localhost` is NOT your laptop. You have two paths below.
+
+#### B1 — Run everything on your laptop (easiest)
+
 ```bash
-# 1. Install Ollama (5 minutes, one-click)
+# 1. Install Ollama (one-click)
 #    https://ollama.com/download   (macOS / Linux / Windows)
 
 # 2. Pull a model
 ollama pull qwen2.5:7b        # ~4 GB; best JSON output of small models
-# Optional bigger models if you have the RAM/VRAM:
+# Optional bigger models:
 # ollama pull qwen2.5:14b      # ~9 GB
 # ollama pull mistral-nemo:12b # ~7 GB
 
-# 3. Verify
-PYTHONPATH=src python scripts/test_ollama.py
+# 3. Verify Ollama is reachable
+curl http://localhost:11434/api/tags    # should return JSON
 
-# 4. Launch the dashboard
+# 4. Launch the dashboard LOCALLY (not Streamlit Cloud)
+git clone https://github.com/ankittalwar07/Multi-agent-AI-investment-agent.git
+cd Multi-agent-AI-investment-agent
+pip install -r requirements.txt
 streamlit run streamlit_app.py
 ```
 
-In the sidebar pick **Provider: `ollama`** (or `multi` — Ollama auto-joins
-the rotation chain as the unlimited fallback). Model auto-fills as
-`qwen2.5:7b`.
+Open <http://localhost:8501>. In the sidebar pick **Provider: `ollama`**
+(or `multi` — Ollama auto-joins the rotation chain as the unlimited
+fallback). Model auto-fills as `qwen2.5:7b`.
 
-**Trade-off:** Local inference is 20-100x slower than cloud (full triage
-takes 8-30 min depending on hardware vs. ~2 min on Gemini). But **zero
-rate limits, zero cost, full privacy** — perfect for hit-run-once-walk-away
-overnight sessions.
+#### B2 — Keep Streamlit Cloud, tunnel local Ollama (advanced)
+
+If you want to keep your existing `*.streamlit.app` URL:
+
+```bash
+# Same Ollama install + pull steps as B1
+# Then expose local Ollama via a free Cloudflare tunnel:
+
+brew install cloudflared           # macOS  (or download for your OS)
+cloudflared tunnel --url http://localhost:11434
+
+# Cloudflared prints a public URL — copy it:
+#   https://random-words.trycloudflare.com
+```
+
+In Streamlit Cloud → **Manage app → Settings → Secrets**, add:
+
+```toml
+OLLAMA_BASE_URL = "https://random-words.trycloudflare.com/v1"
+```
+
+Reboot the app. Now the cloud dashboard reaches your laptop's Ollama
+through the tunnel. **Keep the cloudflared terminal running** — if you
+close it, the tunnel dies.
+
+#### Trade-off
+
+Local inference is 20-100x slower than cloud (full triage takes 8-30 min
+depending on hardware vs ~2 min on Gemini). But **zero rate limits, zero
+cost, full privacy** — perfect for hit-run-once-walk-away overnight
+sessions.
 
 | Hardware | Triage (25 components) | Deep dive on 10 picks |
 |---|---|---|
