@@ -351,7 +351,12 @@ class Pipeline:
         state.research_results = results
 
         # ----- Concentration Analyzer -----
-        analyzer = ConcentrationAnalyzer(llm=llm, llm_rationale=not opts.mock)  # save cost in tests
+        # Skip the per-company narrative rationale LLM call by default — the
+        # deterministic Python rubric still produces the score+breakdown, and
+        # nothing in the dashboard currently surfaces the prose rationale.
+        # Eliminating it removes ~1 LLM call per company (≈60 calls on a full
+        # run), which dominates wall time on serialized free-tier providers.
+        analyzer = ConcentrationAnalyzer(llm=llm, llm_rationale=False)
         scored, cost = analyzer.score_all(state.all_findings())
         self._add_cost(state, repo, cost)
         state.scored = scored
@@ -373,49 +378,31 @@ class Pipeline:
             )
         self._emit(repo, rid, "info", "analyzer", f"scored {len(scored)} companies")
 
-        # ----- Intelligence Agent -----
-        # Fetches gov investments, congressional trades, policy flags etc.
-        # In Demo mode, reads from the INTELLIGENCE patch; in live runs the
-        # LLM provider could call USAspending / Senate EFD / SEC EDGAR via
-        # web tools to populate the same shape.
+        # ----- Intelligence Agent + Investor Council (single pass) -----
+        # Both stages are pure Python (demo data or rule engine), so we fold
+        # them into one loop and one DB write per company instead of two.
+        # Halves the SQLite round-trips through this section on Streamlit Cloud.
         for s in scored:
             cid = company_ids.get((s.component_name, s.finding.name))
             if not cid:
                 continue
-            signals, summary = run_intelligence(
+            patch: dict = {}
+            signals, intel_summary = run_intelligence(
                 s.finding.name, s.finding.ticker,
                 demo_data=DEMO_INTELLIGENCE if opts.mock else None,
             )
-            if signals or summary.total_signals:
-                repo.update_company_extras(
-                    cid,
-                    {
-                        "intelligence_signals": [sig.model_dump(mode="json") for sig in signals],
-                        "intelligence_summary": summary.model_dump(),
-                    },
-                )
-                # Also patch the finding's extras dict so the council (next step)
-                # can use intelligence signals in its rubrics.
+            if signals or intel_summary.total_signals:
+                patch["intelligence_signals"] = [sig.model_dump(mode="json") for sig in signals]
+                patch["intelligence_summary"] = intel_summary.model_dump()
                 if isinstance(s.finding.extras, dict):
-                    s.finding.extras["intelligence_summary"] = summary.model_dump()
-        self._emit(repo, rid, "info", "intelligence",
-                   f"intelligence agent reviewed {len(scored)} companies")
-
-        # ----- Investor Council -----
-        for s in scored:
-            cid = company_ids.get((s.component_name, s.finding.name))
-            if not cid:
-                continue
+                    s.finding.extras["intelligence_summary"] = intel_summary.model_dump()
             view = company_to_view(s.finding, s.score, s.component_name)
             verdicts = run_council(view)
-            summary = council_summary(verdicts)
-            repo.update_company_extras(
-                cid,
-                {
-                    "council_verdicts": [v.model_dump() for v in verdicts],
-                    "council_summary": summary,
-                },
-            )
+            patch["council_verdicts"] = [v.model_dump() for v in verdicts]
+            patch["council_summary"] = council_summary(verdicts)
+            repo.update_company_extras(cid, patch)
+        self._emit(repo, rid, "info", "intelligence",
+                   f"intelligence agent reviewed {len(scored)} companies")
         self._emit(repo, rid, "info", "council",
                    f"council reviewed {len(scored)} companies")
 

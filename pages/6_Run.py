@@ -258,9 +258,9 @@ if partial_runs:
 # ============== Live status ==============
 if st.session_state.get("run_in_progress"):
     st.info(
-        ":hourglass_flowing_sand: Run in progress. Page auto-refreshes every 15s to show progress."
+        ":hourglass_flowing_sand: Run in progress. Page auto-refreshes every 6s to show progress."
     )
-    time.sleep(15)
+    time.sleep(6)
     st.rerun()
 
 # Show per-component status + event tail for the latest/chosen run.
