@@ -8,6 +8,15 @@ from pathlib import Path
 
 import streamlit as st
 
+# Streamlit 1.36+ silently drops session_state writes from threads that
+# weren't created via the script runner. add_script_run_ctx attaches the
+# current script's context to a thread so its writes propagate.
+try:
+    from streamlit.runtime.scriptrunner import add_script_run_ctx  # type: ignore
+except ImportError:  # very old streamlit
+    def add_script_run_ctx(_thread):  # type: ignore
+        return None
+
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
@@ -33,6 +42,12 @@ if cfg is None:
 
 render_queue_sidebar(cfg.get("chosen_run"))
 render_deep_dive_status()
+
+
+class NoProvidersConfigured(RuntimeError):
+    """Raised inside the worker thread when no LLM provider is reachable.
+    The main script catches it via session_state and renders a visible error
+    — st.error/st.stop don't work from background threads in Streamlit 1.36+."""
 
 
 def _build_llm():
@@ -63,11 +78,12 @@ def _build_llm():
     except Exception:
         pass
     if not chain:
-        st.error(
-            "No providers configured. Set GOOGLE_API_KEY and/or GROQ_API_KEY in "
-            "Streamlit secrets, OR run Ollama locally (https://ollama.com)."
+        raise NoProvidersConfigured(
+            "No LLM providers reachable. Set GOOGLE_API_KEY and/or GROQ_API_KEY "
+            "in Streamlit Cloud secrets (Manage app → Settings → Secrets), or "
+            "toggle Demo mode in the sidebar to use mock data, or run Ollama "
+            "locally (https://ollama.com)."
         )
-        st.stop()
     return MultiProviderLLM.from_providers(chain)
 
 
@@ -79,6 +95,15 @@ def _launch(opts: RunOptions, until_done: bool = False) -> str:
     else:
         result = pipeline.run(opts)
     return result.run_id
+
+
+def _start_thread(target):
+    """Launch a worker thread with the Streamlit script context attached.
+    Without add_script_run_ctx, the thread's writes to st.session_state are
+    silently dropped — which makes the page spin on 'run in progress' forever."""
+    t = threading.Thread(target=target, daemon=True)
+    add_script_run_ctx(t)
+    t.start()
 
 
 # ============== Two-tier flow ==============
@@ -111,7 +136,7 @@ with colA:
             finally:
                 st.session_state["run_in_progress"] = False
 
-        threading.Thread(target=_target, daemon=True).start()
+        _start_thread(_target)
         st.rerun()
 
 with colB:
@@ -134,7 +159,7 @@ with colB:
             finally:
                 st.session_state["run_in_progress"] = False
 
-        threading.Thread(target=_target, daemon=True).start()
+        _start_thread(_target)
         st.rerun()
 
 with colC:
@@ -200,7 +225,7 @@ if runs_for_dive:
                     finally:
                         st.session_state["run_in_progress"] = False
 
-                threading.Thread(target=_deepen, daemon=True).start()
+                _start_thread(_deepen)
                 st.rerun()
 
         deep_summary = st.session_state.get("run_thread_result", {}).get("deep_summary")
@@ -252,7 +277,17 @@ if partial_runs:
             finally:
                 st.session_state["run_in_progress"] = False
 
-        threading.Thread(target=_target, daemon=True).start()
+        _start_thread(_target)
+        st.rerun()
+
+# ============== Surfaced error from the worker thread ==============
+# If the background thread crashed (e.g. missing API key), we want the user
+# to actually see it instead of staring at a spinner forever.
+_err = st.session_state.get("run_thread_result", {}).get("error")
+if _err and not st.session_state.get("run_in_progress"):
+    st.error(f"Run failed: {_err}")
+    if st.button("Dismiss error"):
+        st.session_state["run_thread_result"].pop("error", None)
         st.rerun()
 
 # ============== Live status ==============
