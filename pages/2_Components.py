@@ -22,7 +22,31 @@ from dashboard_utils import (  # noqa: E402
     fmt_money, fmt_pct, fmt_price, rec_badge, structure_badge,
     view_to_dataframe,
 )
+from investment_agent.config import get_settings  # noqa: E402
 from investment_agent.storage.repository import RunRepository  # noqa: E402
+from investment_agent.tools.seed_loader import SeedFile  # noqa: E402
+import yaml  # noqa: E402
+
+
+@st.cache_data(show_spinner=False)
+def _load_seed_explainers() -> dict[str, dict]:
+    """Map component-name → {description, why_it_matters, notes} from the
+    seed YAML. Educational content lives in the seed file (single source of
+    truth, no DB schema needed)."""
+    seed_path = get_settings().seed_file
+    try:
+        data = yaml.safe_load(seed_path.read_text())
+        seed = SeedFile.model_validate(data)
+        return {
+            c.name: {
+                "description": c.description,
+                "why_it_matters": c.why_it_matters,
+                "notes": c.notes,
+            }
+            for c in seed.components
+        }
+    except Exception:
+        return {}
 
 st.title("Component Deep Dive")
 
@@ -43,8 +67,10 @@ comp_names = sorted({c.name for c in view.components})
 jump_to = st.session_state.pop("jump_to_component", None)
 if jump_to and jump_to in comp_names:
     default_idx = comp_names.index(jump_to)
-elif "AI Accelerator Silicon" in comp_names:
-    default_idx = comp_names.index("AI Accelerator Silicon")
+elif "AI Training GPUs (Merchant Silicon)" in comp_names:
+    default_idx = comp_names.index("AI Training GPUs (Merchant Silicon)")
+elif "Hyperscaler Custom Silicon (TPUs/ASICs)" in comp_names:
+    default_idx = comp_names.index("Hyperscaler Custom Silicon (TPUs/ASICs)")
 else:
     default_idx = 0
 component = st.selectbox("Component", comp_names, index=default_idx)
@@ -77,6 +103,15 @@ if comp_obj.description:
     st.caption(comp_obj.description)
 if comp_obj.category:
     st.caption(f"Category: `{comp_obj.category}` · {len(sub)} companies covered")
+
+# ----- Executive explainer (from seed YAML) -----
+explainers = _load_seed_explainers()
+explain = explainers.get(component, {})
+if explain.get("why_it_matters"):
+    with st.expander("**Why this matters** — how the technology works and where the moat is", expanded=False):
+        st.markdown(explain["why_it_matters"])
+        if explain.get("notes"):
+            st.caption(f"_{explain['notes']}_")
 
 st.markdown("---")
 

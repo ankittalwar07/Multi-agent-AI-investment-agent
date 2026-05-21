@@ -474,7 +474,9 @@ def wood(c: CompanyView) -> dict:
     structure = _structure(c)
 
     INNOVATION_COMPONENTS = {
-        "AI Accelerator Silicon", "Foundation Model Labs", "GPU Neoclouds",
+        "AI Training GPUs (Merchant Silicon)",
+        "Hyperscaler Custom Silicon (TPUs/ASICs)",
+        "Foundation Model Labs", "GPU Neoclouds",
         "Inference Hardware Startups", "Edge / On-Device Inference",
         "Vector Databases", "Agent Frameworks", "Synthetic Data",
         "Data Labeling / RLHF", "LLM Observability",
@@ -665,8 +667,12 @@ def burry(c: CompanyView) -> dict:
         bubble_flags.append(f"EPS revisions {eps_rev*100:+.0f}%")
 
     # Capex-heavy AI hype names
-    AI_HYPE_LAYERS = {"AI Accelerator Silicon", "Foundation Model Labs", "GPU Neoclouds",
-                       "Inference Hardware Startups"}
+    AI_HYPE_LAYERS = {
+        "AI Training GPUs (Merchant Silicon)",
+        "Hyperscaler Custom Silicon (TPUs/ASICs)",
+        "Foundation Model Labs", "GPU Neoclouds",
+        "Inference Hardware Startups",
+    }
 
     if len(bubble_flags) >= 3:
         return _v("AVOID", "HIGH",

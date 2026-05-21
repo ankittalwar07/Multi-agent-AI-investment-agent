@@ -17,6 +17,10 @@ class SeedComponent(BaseModel):
     description: str = ""
     incumbents: list[str] = Field(default_factory=list)
     notes: str = ""
+    # Executive-level explainer: why this technology exists, what problem it
+    # solves, and where the investment angle is. Surfaced in the Components
+    # drill-in as a "Why this matters" expander.
+    why_it_matters: str = ""
 
 
 class SeedFile(BaseModel):
