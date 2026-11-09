@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Infrastructure Moat Map</title>
+  <meta name="description" content="A multi-agent research pipeline that maps the AI infrastructure stack and scores which suppliers hold real bottleneck positions.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <div class="brand">
+        <h1>AI Infrastructure Moat Map</h1>
+        <p class="tagline">A multi-agent pipeline walks the AI stack from copper to foundation models, finds the suppliers each layer depends on, and scores how defensible each position is.</p>
+      </div>
+      <nav class="links">
+        <a href="https://github.com/ankittalwar07/Multi-agent-AI-investment-agent">Source on GitHub</a>
+        <a href="https://github.com/ankittalwar07/Multi-agent-AI-investment-agent#how-it-works">How it works</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="banner" class="banner" hidden></div>
+
+    <section class="meta" aria-label="Run summary">
+      <div class="tile"><span class="num" id="s-components">0</span><span class="lbl">stack layers</span></div>
+      <div class="tile"><span class="num" id="s-companies">0</span><span class="lbl">companies scored</span></div>
+      <div class="tile"><span class="num" id="s-sources">0</span><span class="lbl">cited sources</span></div>
+      <div class="tile"><span class="num" id="s-sole">0</span><span class="lbl">sole-source positions confirmed</span></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>This run</h2>
+        <span class="muted" id="run-meta"></span>
+      </div>
+      <p id="summary" class="summary"></p>
+      <ul id="themes" class="themes"></ul>
+    </section>
+
+    <section class="card">
+      <h2>How the agents work</h2>
+      <ol class="flow">
+        <li><b>Decomposer</b><span>Breaks the AI stack into 25+ layers from a seeded taxonomy and adds any missing ones.</span></li>
+        <li><b>Component researchers</b><span>One agent per layer, in parallel: finds the leading suppliers with cited sources.</span></li>
+        <li><b>Moat rubric</b><span>Pure Python, 0 to 100. Sole-source only counts with two independent domains.</span></li>
+        <li><b>Investor council</b><span>Nine rule-based investor lenses vote on every company.</span></li>
+        <li><b>Synthesizer</b><span>Ranks the field and writes the cross-layer themes you see above.</span></li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Leaderboard</h2>
+        <div class="filters">
+          <input id="q" type="search" placeholder="Search company or ticker" aria-label="Search">
+          <select id="cat" aria-label="Stack layer"><option value="">All layers</option></select>
+          <select id="pub" aria-label="Listing">
+            <option value="">Public and private</option>
+            <option value="public">Public only</option>
+            <option value="private">Private only</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="board">
+          <thead>
+            <tr><th>#</th><th>Company</th><th>Layer</th><th>Share</th><th>Moat score</th><th>Council</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="muted small">Select a row to see the score breakdown, the council's votes and the sources.</p>
+    </section>
+
+    <section class="card">
+      <h2>The stack, layer by layer</h2>
+      <div id="stack" class="stack"></div>
+    </section>
+
+    <section class="card">
+      <h2>Run history</h2>
+      <ul id="history" class="history"></ul>
+    </section>
+  </main>
+
+  <aside id="panel" class="panel" hidden aria-live="polite">
+    <button id="close" class="close" aria-label="Close">Close</button>
+    <div id="detail"></div>
+  </aside>
+
+  <footer class="wrap foot">
+    <p>Not investment advice. This is an engineering demo of multi-agent orchestration, and its output may be incomplete or wrong.</p>
+    <p>Related projects by Ankit Talwar:
+      <a href="https://github.com/ankittalwar07/thesis-builder">Thesis Builder</a> (<a href="https://ankittalwar07.github.io/thesis-builder/">live</a>),
+      <a href="https://github.com/ankittalwar07/warning-signaks-for-AI-economy-">AI Demand Watch</a> (<a href="https://ankittalwar07.github.io/warning-signaks-for-AI-economy-/">live</a>).
+    </p>
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>
