@@ -41,3 +41,6 @@ data/runs/*
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Claude routine scratch space
+work/

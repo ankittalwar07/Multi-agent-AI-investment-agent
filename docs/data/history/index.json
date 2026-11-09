@@ -1,0 +1,15 @@
+{
+  "runs": [
+    {
+      "run_date": "2026-11-08",
+      "file": "history/2026-11-08.json",
+      "sample": true,
+      "companies": 64,
+      "top": [
+        "ASML Holding",
+        "NVIDIA",
+        "TSMC (CoWoS)"
+      ]
+    }
+  ]
+}
