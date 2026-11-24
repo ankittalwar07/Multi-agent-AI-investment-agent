@@ -150,6 +150,23 @@ git push origin main
 If the push is rejected because main moved, run `git pull --rebase origin main`,
 rebuild, validate, and push again. Never force-push.
 
+If the push to `main` is refused for permission (not a network error, and not
+because main moved), this session may only push `claude/` branches. Publish
+through a pull request instead, using the GitHub REST API (`gh pr` needs
+GraphQL, which may be blocked here):
+
+```bash
+BR="claude/data-$(date -u +%F)"
+git push origin HEAD:"$BR"
+PR=$(gh api repos/ankittalwar07/Multi-agent-AI-investment-agent/pulls \
+  -f title="data: weekly market map $(date -u +%F)" -f head="$BR" -f base=main \
+  -f body="Automated data refresh from the scheduled routine. Only data files changed." -q .number)
+gh api -X PUT repos/ankittalwar07/Multi-agent-AI-investment-agent/pulls/$PR/merge -f merge_method=squash
+```
+
+If the merge call fails, leave the pull request open and say so in your report,
+with its number. Never change branch protection or repo settings.
+
 ## 7. Report
 
 End with a short report: run date, number of components and companies, number of
