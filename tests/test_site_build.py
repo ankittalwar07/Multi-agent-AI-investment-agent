@@ -97,3 +97,13 @@ def test_validator_rejects_unsourced_real_runs(tmp_path):
 
 def test_committed_site_data_is_valid():
     assert _load_validator().validate_dir(ROOT / "docs" / "data") == []
+
+
+def test_first_real_run_retires_sample_history(tmp_path):
+    sample = build_site_payload({**_research(), "run_date": "2026-11-08"}, sample=True)
+    write_site_data(sample, tmp_path)
+    write_site_data(build_site_payload(_research()), tmp_path)
+    runs = json.loads((tmp_path / "history" / "index.json").read_text())["runs"]
+    assert [r["run_date"] for r in runs] == ["2026-11-09"]
+    assert not (tmp_path / "history" / "2026-11-08.json").exists()
+    assert _load_validator().validate_dir(tmp_path) == []

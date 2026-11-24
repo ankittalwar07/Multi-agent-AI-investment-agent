@@ -252,6 +252,18 @@ def write_site_data(payload: dict, out_dir: Path) -> list[Path]:
     dated = hist / f"{payload['run_date']}.json"
     dated.write_text(text, encoding="utf-8")
 
+    # The first real run retires the seed sample files so live and sample
+    # data never mix in the run history.
+    if not payload.get("sample"):
+        for p in hist.glob("????-??-??.json"):
+            if p == dated:
+                continue
+            try:
+                if json.loads(p.read_text(encoding="utf-8")).get("sample"):
+                    p.unlink()
+            except (OSError, json.JSONDecodeError):
+                continue
+
     entries = []
     for p in sorted(hist.glob("????-??-??.json"), reverse=True):
         try:
